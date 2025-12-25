@@ -12,9 +12,9 @@ class DotBuildingBlocks2D(object):
         # visibility distance for the robot's end-effector. Farther than that, the robot won't see any points.
         self.vis_dist = 60.0
 
-    def compute_distance(self, prev_config, next_config):
-        # TODO: HW3 2.1
-        pass
+    def compute_distance(self, prev_config, next_config): # ib: in A* it will be used to compute the heuristic and the cost .   
+        #HW3 2.1
+        return np.linalg.norm(np.array(next_config) - np.array(prev_config))
 
     def sample_random_config(self, goal_prob, goal):
         # TODO: HW3 2.1
