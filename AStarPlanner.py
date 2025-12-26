@@ -25,7 +25,7 @@ class AStarPlanner(object):
         # define all directions the agent can take - order doesn't matter here
         self.directions = [(0, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (-1, 1), (1, 1), (1, -1)]
 
-        self.epsilon = 1
+        self.epsilon = 10
         plan = self.a_star(self.start, self.goal)
         return np.array(plan)
 
@@ -43,7 +43,6 @@ class AStarPlanner(object):
         start = np.asarray(start_loc, dtype=float)
         goal = np.asarray(goal_loc, dtype=float)
 
-        # Use hashable keys for dict/set (important for numpy arrays)
         start_key = (int(start[0]), int(start[1]))
         goal_key  = (int(goal[0]),  int(goal[1]))
 

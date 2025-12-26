@@ -20,13 +20,31 @@ from twoD.visualizer import Visualizer
 MAP_DETAILS = {"json_file": "twoD/map2.json", "start": np.array([360, 150]), "goal": np.array([100, 200])}
 
 
+def compute_plan_cost(bb, plan: np.array) -> float:
+    """
+    Sum of edge costs along the plan using the same metric as the planners.
+    plan is expected to be shape (N, 2). Returns 0.0 if plan is empty or has 1 state.
+    """
+    if plan is None or len(plan) < 2:
+        return 0.0
+
+    total = 0.0
+    for i in range(len(plan) - 1):
+        total += bb.compute_distance(plan[i], plan[i + 1])
+    return float(total)
+
+
+
 def run_dot_2d_astar():
     planning_env = MapDotEnvironment(json_file=MAP_DETAILS["json_file"])
     bb = DotBuildingBlocks2D(planning_env)
     planner = AStarPlanner(bb=bb, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"])
 
+
     # execute plan
     plan = planner.plan()
+    print("Plan found with {} nodes expanded.".format(len(planner.expanded_nodes)))
+    print("Plan cost: {}".format(compute_plan_cost(bb, plan)))
     DotVisualizer(bb).visualize_map(plan=plan, expanded_nodes=planner.expanded_nodes, show_map=True, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"])
 
 def run_dot_2d_rrt():
