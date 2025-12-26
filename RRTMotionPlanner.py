@@ -38,5 +38,22 @@ class RRTMotionPlanner(object):
         @param near_config The nearest configuration to the sampled configuration.
         @param rand_config The sampled configuration.
         '''
-        # TODO: HW3 2.2.1
-        pass
+        # HW3 2.2.1
+        near = np.asarray(near_config, dtype=float)
+        rand = np.asarray(rand_config, dtype=float)
+
+        diff = rand - near
+        dist = float(np.linalg.norm(diff))
+        if dist == 0.0:
+            return None
+
+        if self.ext_mode == "E1":
+            return rand
+
+        if self.ext_mode == "E2":
+            # Step size (eta). For 2D manipulator joint space: radians.
+            # Pick a small eta and mention it in the report.
+            eta = 0.2
+            step = (eta / dist) * diff
+            return near + step
+        
