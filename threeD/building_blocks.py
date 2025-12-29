@@ -15,7 +15,7 @@ class BuildingBlocks3D(object):
         
         self.cost_weights = np.array([0.4, 0.3, 0.2, 0.1, 0.07, 0.05])
 
-        self.single_mechanical_limit = list(self.ur_params.mechamical_limits.values())[-1][-1]
+        self.single_mechanical_limit = list(self.ur_params.mechanical_limits.values())[-1][-1]
 
         # pairs of links that can collide during sampling
         self.possible_link_collisions = [

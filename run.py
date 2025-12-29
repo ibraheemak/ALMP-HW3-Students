@@ -59,11 +59,12 @@ def run_dot_2d_rrt():
 def run_dot_2d_rrt_star():
     planning_env = MapDotEnvironment(json_file=MAP_DETAILS["json_file"])
     bb = DotBuildingBlocks2D(planning_env)
-    planner = RRTStarPlanner(bb=bb, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"], ext_mode="E1", goal_prob=0.2, k=None, step_size=None)
+    planner = RRTStarPlanner(bb=bb, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"], ext_mode="E1", goal_prob=0.2, k=None)
 
     # execute plan
     plan = planner.plan()
     DotVisualizer(bb).visualize_map(plan=plan, tree_edges=planner.tree.get_edges_as_states(), show_map=True)
+
 def run_2d_rrt_star_motion_planning():
     MAP_DETAILS = {
         "json_file": "twoD/map_mp.json",
@@ -77,8 +78,8 @@ def run_2d_rrt_star_motion_planning():
         start=MAP_DETAILS["start"],
         goal=MAP_DETAILS["goal"],
         ext_mode="E2",
-        goal_prob=0.5,
-        max_step_size=0.1,
+        goal_prob=0.05,
+        max_step_size=0.3,
     )
     # execute plan
     plan = planner.plan()

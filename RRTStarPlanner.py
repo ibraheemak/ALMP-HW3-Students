@@ -9,7 +9,7 @@ class RRTStarPlanner(object):
         self,
         bb,
         ext_mode,
-        step_size,
+        max_step_size,
         start,
         goal,
         max_itr=None,
@@ -32,7 +32,7 @@ class RRTStarPlanner(object):
         self.goal_prob = goal_prob
         self.k = k
 
-        self.max_step_size = step_size
+        self.max_step_size = max_step_size
 
     def plan(self):
         """

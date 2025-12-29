@@ -24,7 +24,14 @@ class BuildingBlocks2D(object):
         '''
         # TODO: HW2 4.2.1
         pass
-
+    def sample_random_config(self, goal_prob, goal):
+        """
+        Sample a random configuration in the configuration space. With probability goal_prob, return the goal configuration.
+        @param goal_prob Probability of returning the goal configuration.
+        @param goal The goal configuration.
+        """
+         # TODO: HW2 4.2.1
+        pass
     def compute_path_cost(self, path):
         totat_cost = 0
         for i in range(len(path) - 1):
