@@ -21,16 +21,62 @@ class RRTMotionPlanner(object):
         '''
         Compute and return the plan. The function should return a numpy array containing the states in the configuration space.
         '''
-        # TODO: HW3 2.2.3
-        pass
+        # HW3 2.2.3
+        start_time = time.time()
+
+        # Reset tree each run
+        self.tree = RRTTree(self.bb, task="mp")
+
+        # Add start as root
+        root_id = self.tree.add_vertex(np.asarray(self.start, dtype=float))
+
+        while True:
+            rand_config = self.bb.sample_random_config(self.goal_prob, self.goal)
+            near_id, near_config = self.tree.get_nearest_config(rand_config)
+            new_config = self.extend(near_config, rand_config)
+            if new_config is None:
+                continue
+
+            #  Validity checks
+            if not self.bb.config_validity_checker(new_config):
+                continue
+            if not self.bb.edge_validity_checker(near_config, new_config):
+                continue
+
+            new_id = self.tree.add_vertex(new_config)
+            edge_cost = self.bb.compute_distance(near_config, new_config)
+            self.tree.add_edge(near_id, new_id, edge_cost=edge_cost)
+
+            # Stop only when the goal was actually added to the tree
+            if (new_config == np.asarray(self.goal, dtype=float)).all():
+                goal_id = new_id
+                break
+
+
+
+        # Reconstruct path
+        path = []
+        curr = goal_id
+        while True:
+            path.append(self.tree.vertices[curr].config)
+            if curr == self.tree.get_root_id():
+                break
+            curr = self.tree.edges[curr]
+        path.reverse()
+
+        self.plan_time = time.time() - start_time  
+        return np.array(path, dtype=float)
 
     def compute_cost(self, plan):
         '''
         Compute and return the plan cost, which is the sum of the distances between steps in the configuration space.
         @param plan A given plan for the robot.
         '''
-        # TODO: HW3 2.2.2
-        pass
+        #  HW3 2.2.2
+        total_cost = 0
+        for i in range(len(plan) - 1):
+            totat_cost += self.compute_distance(plan[i], plan[i + 1])
+        return total_cost
 
     def extend(self, near_config, rand_config):
         '''

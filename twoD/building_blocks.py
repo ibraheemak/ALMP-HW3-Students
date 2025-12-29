@@ -30,8 +30,18 @@ class BuildingBlocks2D(object):
         @param goal_prob Probability of returning the goal configuration.
         @param goal The goal configuration.
         """
-         # TODO: HW2 4.2.1
-        pass
+        if np.random.rand() < goal_prob:
+            return np.asarray(goal, dtype=float)
+
+        # Sample joint angles uniformly
+        # Joint limits: [-pi, pi] for each theta
+        thetas = np.random.uniform(
+            low=-np.pi,
+            high=np.pi,
+            size=4
+        )
+        return thetas     
+    
     def compute_path_cost(self, path):
         totat_cost = 0
         for i in range(len(path) - 1):

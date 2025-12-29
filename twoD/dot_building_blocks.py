@@ -12,7 +12,7 @@ class DotBuildingBlocks2D(object):
         # visibility distance for the robot's end-effector. Farther than that, the robot won't see any points.
         self.vis_dist = 60.0
 
-    def compute_distance(self, prev_config, next_config): # ib: in A* it will be used to compute the heuristic and the cost .   
+    def compute_distance(self, prev_config, next_config): # in A* it will be used to compute the heuristic and the cost .   
         #HW3 2.1
         return np.linalg.norm(np.array(next_config) - np.array(prev_config))
 
@@ -22,14 +22,9 @@ class DotBuildingBlocks2D(object):
         if np.random.rand() < goal_prob:
             return np.asarray(goal, dtype=float)
 
-        # Sample joint angles uniformly
-        # Joint limits: [-pi, pi] for each theta
-        thetas = np.random.uniform(
-            low=-np.pi,
-            high=np.pi,
-            size=4
-        )
-        return thetas
+        x = np.random.randint(self.env.xlimit[0], self.env.xlimit[1] + 1)
+        y = np.random.randint(self.env.ylimit[0], self.env.ylimit[1] + 1)
+        return np.array([x, y], dtype=float)
 
     def config_validity_checker(self, state):
         return self.env.config_validity_checker(state)
