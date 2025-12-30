@@ -90,7 +90,7 @@ def run_2d_rrt_motion_planning():
     planning_env = MapEnvironment(json_file=MAP_DETAILS["json_file"], task="mp")
     bb = BuildingBlocks2D(planning_env)
     visualizer = Visualizer(bb)
-    planner = RRTMotionPlanner(bb=bb, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"], ext_mode="E2", goal_prob=0.05, visualizer=visualizer) # visualizer just for debugging ,remove it when submit
+    planner = RRTMotionPlanner(bb=bb, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"], ext_mode="E2", goal_prob=0.05) # visualizer just for debugging ,remove it when submit
     # execute plan
     plan = planner.plan()
     Visualizer(bb).visualize_plan(plan=plan, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"])

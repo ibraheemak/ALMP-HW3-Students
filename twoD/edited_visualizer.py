@@ -8,6 +8,132 @@ import matplotlib
 class Visualizer:
     def __init__(self, bb):
         self.bb = bb
+        self.fig = None
+        self.ax_task = None
+        self.ax_joint = None
+
+    def visualize_sampling(self, rand_config, near_config, new_config, tree, start, goal):
+        '''
+        Visualize the sampling process in real-time during planning.
+        Shows both task space (end-effector) and joint space (configuration) views.
+        @param rand_config The randomly sampled configuration.
+        @param near_config The nearest configuration in the tree to the sampled one.
+        @param new_config The new configuration after extending (can be None if extension failed).
+        @param tree The current RRT tree.
+        @param start The start configuration.
+        @param goal The goal configuration.
+        '''
+        # Create figure with two subplots on first call
+        if self.fig is None:
+            plt.ion()  # Turn on interactive mode
+            self.fig = plt.figure(figsize=(16, 7))
+            self.ax_task = self.fig.add_subplot(121)  # Left: Task space
+            self.ax_joint = self.fig.add_subplot(122)  # Right: Joint space
+        
+        # Clear both axes
+        self.ax_task.clear()
+        self.ax_joint.clear()
+        
+        ### LEFT PLOT: TASK SPACE (End-effector positions) ###
+        # Set up the background
+        back_img = np.zeros((self.bb.env.ylimit[1] + 1, self.bb.env.xlimit[1] + 1))
+        self.ax_task.imshow(back_img, origin='lower', zorder=0)
+        
+        # Draw obstacles
+        for obstacle in self.bb.env.obstacles:
+            obstacle_xs, obstacle_ys = zip(*obstacle)
+            self.ax_task.fill(obstacle_xs, obstacle_ys, "y", zorder=5)
+        
+        # Draw start and goal points
+        start_pos = self.bb.compute_forward_kinematics(given_config=start)[-1]
+        goal_pos = self.bb.compute_forward_kinematics(given_config=goal)[-1]
+        self.ax_task.plot(start_pos[0], start_pos[1], 'ro', markersize=10, label='Start', zorder=15)
+        self.ax_task.plot(goal_pos[0], goal_pos[1], 'go', markersize=10, label='Goal', zorder=15)
+        
+        # Draw tree edges
+        for vertex_id, parent_id in tree.edges.items():
+            if parent_id is not None:
+                child_config = tree.vertices[vertex_id].config
+                parent_config = tree.vertices[parent_id].config
+                child_pos = self.bb.compute_forward_kinematics(given_config=child_config)[-1]
+                parent_pos = self.bb.compute_forward_kinematics(given_config=parent_config)[-1]
+                self.ax_task.plot([parent_pos[0], child_pos[0]], [parent_pos[1], child_pos[1]], 
+                           'b-', alpha=0.3, linewidth=0.5, zorder=8)
+        
+        # Draw tree vertices
+        for vertex in tree.vertices.values():
+            pos = self.bb.compute_forward_kinematics(given_config=vertex.config)[-1]
+            self.ax_task.plot(pos[0], pos[1], 'b.', markersize=3, zorder=10)
+        
+        # Draw the randomly sampled point
+        rand_pos = self.bb.compute_forward_kinematics(given_config=rand_config)[-1]
+        self.ax_task.plot(rand_pos[0], rand_pos[1], 'm*', markersize=12, label='Sampled', zorder=20)
+        
+        # Draw the nearest point in tree
+        near_pos = self.bb.compute_forward_kinematics(given_config=near_config)[-1]
+        self.ax_task.plot(near_pos[0], near_pos[1], 'c^', markersize=10, label='Nearest', zorder=20)
+        
+        # Draw line from nearest to sampled
+        self.ax_task.plot([near_pos[0], rand_pos[0]], [near_pos[1], rand_pos[1]], 
+                   'c--', alpha=0.5, linewidth=1.5, zorder=18)
+        
+        # If new_config is valid, draw it
+        if new_config is not None:
+            new_pos = self.bb.compute_forward_kinematics(given_config=new_config)[-1]
+            self.ax_task.plot(new_pos[0], new_pos[1], 'rs', markersize=8, label='New', zorder=20)
+            self.ax_task.plot([near_pos[0], new_pos[0]], [near_pos[1], new_pos[1]], 
+                       'r-', alpha=0.7, linewidth=2, zorder=19)
+        
+        self.ax_task.legend(loc='upper right', fontsize=8)
+        self.ax_task.set_title(f'Task Space (End-Effector Position)')
+        self.ax_task.set_xlabel('X')
+        self.ax_task.set_ylabel('Y')
+        
+        ### RIGHT PLOT: JOINT SPACE (Configuration space) ###
+        # For 4-joint robot, we'll plot first 2 joints as x-y for visualization
+        # Draw tree vertices in joint space
+        for vertex in tree.vertices.values():
+            self.ax_joint.plot(vertex.config[0], vertex.config[1], 'b.', markersize=3, zorder=10)
+        
+        # Draw tree edges in joint space
+        for vertex_id, parent_id in tree.edges.items():
+            if parent_id is not None:
+                child_config = tree.vertices[vertex_id].config
+                parent_config = tree.vertices[parent_id].config
+                self.ax_joint.plot([parent_config[0], child_config[0]], 
+                                  [parent_config[1], child_config[1]], 
+                                  'b-', alpha=0.3, linewidth=0.5, zorder=8)
+        
+        # Draw start and goal in joint space
+        self.ax_joint.plot(start[0], start[1], 'ro', markersize=10, label='Start', zorder=15)
+        self.ax_joint.plot(goal[0], goal[1], 'go', markersize=10, label='Goal', zorder=15)
+        
+        # Draw sampled, nearest, and new configurations
+        self.ax_joint.plot(rand_config[0], rand_config[1], 'm*', markersize=12, label='Sampled', zorder=20)
+        self.ax_joint.plot(near_config[0], near_config[1], 'c^', markersize=10, label='Nearest', zorder=20)
+        
+        # Draw line from nearest to sampled (shows the direction)
+        self.ax_joint.plot([near_config[0], rand_config[0]], [near_config[1], rand_config[1]], 
+                   'c--', alpha=0.5, linewidth=1.5, zorder=18, label='Direction')
+        
+        # If new_config is valid, draw it - THIS SHOULD BE LINEAR!
+        if new_config is not None:
+            self.ax_joint.plot(new_config[0], new_config[1], 'rs', markersize=8, label='New', zorder=20)
+            self.ax_joint.plot([near_config[0], new_config[0]], [near_config[1], new_config[1]], 
+                       'r-', alpha=0.7, linewidth=2, zorder=19)
+        
+        self.ax_joint.legend(loc='upper right', fontsize=8)
+        self.ax_joint.set_title(f'Joint Space (θ₁ vs θ₂) - Tree Size: {len(tree.vertices)}')
+        self.ax_joint.set_xlabel('θ₁ (radians)')
+        self.ax_joint.set_ylabel('θ₂ (radians)')
+        self.ax_joint.set_xlim([-np.pi, np.pi])
+        self.ax_joint.set_ylim([-np.pi, np.pi])
+        self.ax_joint.grid(True, alpha=0.3)
+        
+        # Update the figure
+        plt.tight_layout()
+        plt.pause(0.01)
+        plt.draw()
 
     def interpolate_plan(self, plan_configs):
         '''

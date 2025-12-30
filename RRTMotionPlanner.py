@@ -1,3 +1,4 @@
+from matplotlib.pylab import rand
 import numpy as np
 from RRTTree import RRTTree
 import time
@@ -108,9 +109,9 @@ class RRTMotionPlanner(object):
             return rand
 
         if self.ext_mode == "E2":
-            # Step size (eta). For 2D manipulator joint space: radians.
-            # Pick a small eta and mention it in the report.
-            eta = 0.2  # Small step size in radians (~11.5 degrees)
+            eta = 0.7  # Small step size in radians 
+            if dist <= eta:
+                return rand 
             step = (eta / dist) * diff
             return near + step
         
