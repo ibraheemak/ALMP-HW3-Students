@@ -8,6 +8,83 @@ import matplotlib
 class Visualizer:
     def __init__(self, bb):
         self.bb = bb
+        self.fig = None
+        self.ax = None
+
+    def visualize_sampling(self, rand_config, near_config, new_config, tree, start, goal):
+        '''
+        Visualize the sampling process in real-time during planning.
+        @param rand_config The randomly sampled configuration.
+        @param near_config The nearest configuration in the tree to the sampled one.
+        @param new_config The new configuration after extending (can be None if extension failed).
+        @param tree The current RRT tree.
+        @param start The start configuration.
+        @param goal The goal configuration.
+        '''
+        # Create figure on first call
+        if self.fig is None:
+            plt.ion()  # Turn on interactive mode
+            self.fig = plt.figure(figsize=(10, 8))
+            self.ax = self.fig.add_subplot(111)
+        
+        # Clear the axis
+        self.ax.clear()
+        
+        # Set up the background
+        back_img = np.zeros((self.bb.env.ylimit[1] + 1, self.bb.env.xlimit[1] + 1))
+        self.ax.imshow(back_img, origin='lower', zorder=0)
+        
+        # Draw obstacles
+        for obstacle in self.bb.env.obstacles:
+            obstacle_xs, obstacle_ys = zip(*obstacle)
+            self.ax.fill(obstacle_xs, obstacle_ys, "y", zorder=5)
+        
+        # Draw start and goal points
+        start_pos = self.bb.compute_forward_kinematics(given_config=start)[-1]
+        goal_pos = self.bb.compute_forward_kinematics(given_config=goal)[-1]
+        self.ax.plot(start_pos[0], start_pos[1], 'ro', markersize=10, label='Start', zorder=15)
+        self.ax.plot(goal_pos[0], goal_pos[1], 'go', markersize=10, label='Goal', zorder=15)
+        
+        # Draw tree edges
+        for vertex_id, parent_id in tree.edges.items():
+            if parent_id is not None:
+                child_config = tree.vertices[vertex_id].config
+                parent_config = tree.vertices[parent_id].config
+                child_pos = self.bb.compute_forward_kinematics(given_config=child_config)[-1]
+                parent_pos = self.bb.compute_forward_kinematics(given_config=parent_config)[-1]
+                self.ax.plot([parent_pos[0], child_pos[0]], [parent_pos[1], child_pos[1]], 
+                           'b-', alpha=0.3, linewidth=0.5, zorder=8)
+        
+        # Draw tree vertices
+        for vertex in tree.vertices.values():
+            pos = self.bb.compute_forward_kinematics(given_config=vertex.config)[-1]
+            self.ax.plot(pos[0], pos[1], 'b.', markersize=3, zorder=10)
+        
+        # Draw the randomly sampled point
+        rand_pos = self.bb.compute_forward_kinematics(given_config=rand_config)[-1]
+        self.ax.plot(rand_pos[0], rand_pos[1], 'm*', markersize=12, label='Sampled', zorder=20)
+        
+        # Draw the nearest point in tree
+        near_pos = self.bb.compute_forward_kinematics(given_config=near_config)[-1]
+        self.ax.plot(near_pos[0], near_pos[1], 'c^', markersize=10, label='Nearest', zorder=20)
+        
+        # Draw line from nearest to sampled
+        self.ax.plot([near_pos[0], rand_pos[0]], [near_pos[1], rand_pos[1]], 
+                   'c--', alpha=0.5, linewidth=1.5, zorder=18)
+        
+        # If new_config is valid, draw it
+        if new_config is not None:
+            new_pos = self.bb.compute_forward_kinematics(given_config=new_config)[-1]
+            self.ax.plot(new_pos[0], new_pos[1], 'rs', markersize=8, label='New', zorder=20)
+            self.ax.plot([near_pos[0], new_pos[0]], [near_pos[1], new_pos[1]], 
+                       'r-', alpha=0.7, linewidth=2, zorder=19)
+        
+        self.ax.legend(loc='upper right')
+        self.ax.set_title(f'RRT Sampling Visualization - Tree Size: {len(tree.vertices)}')
+        
+        # Update the figure
+        plt.pause(0.01)
+        plt.draw()
 
     def interpolate_plan(self, plan_configs):
         '''

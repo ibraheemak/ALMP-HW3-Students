@@ -5,7 +5,7 @@ import time
 
 class RRTMotionPlanner(object):
 
-    def __init__(self, bb, ext_mode, goal_prob, start, goal):
+    def __init__(self, bb, ext_mode, goal_prob, start, goal, visualizer=None):
 
         # set environment and search tree
         self.bb = bb
@@ -16,6 +16,9 @@ class RRTMotionPlanner(object):
         # set search params
         self.ext_mode = ext_mode
         self.goal_prob = goal_prob
+        
+        # set visualizer for real-time visualization
+        self.visualizer = visualizer
 
     def plan(self):
         '''
@@ -30,10 +33,18 @@ class RRTMotionPlanner(object):
         # Add start as root
         root_id = self.tree.add_vertex(np.asarray(self.start, dtype=float))
 
+        iteration = 0
         while True:
+            iteration += 1
+            print(f"Tree size: {len(self.tree.vertices)}")
             rand_config = self.bb.sample_random_config(self.goal_prob, self.goal)
             near_id, near_config = self.tree.get_nearest_config(rand_config)
             new_config = self.extend(near_config, rand_config)
+            
+            # Visualize the sampling in real-time (every 5 iterations to avoid slowdown)
+            if self.visualizer is not None and iteration % 5 == 0:
+                self.visualizer.visualize_sampling(rand_config, near_config, new_config, self.tree, self.start, self.goal)
+            
             if new_config is None:
                 continue
 
@@ -99,7 +110,7 @@ class RRTMotionPlanner(object):
         if self.ext_mode == "E2":
             # Step size (eta). For 2D manipulator joint space: radians.
             # Pick a small eta and mention it in the report.
-            eta = 0.2
+            eta = 0.2  # Small step size in radians (~11.5 degrees)
             step = (eta / dist) * diff
             return near + step
         
