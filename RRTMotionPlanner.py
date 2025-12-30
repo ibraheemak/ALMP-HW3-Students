@@ -37,7 +37,7 @@ class RRTMotionPlanner(object):
         iteration = 0
         while True:
             iteration += 1
-            print(f"Tree size: {len(self.tree.vertices)}")
+            #print(f"Tree size: {len(self.tree.vertices)}")
             rand_config = self.bb.sample_random_config(self.goal_prob, self.goal)
             near_id, near_config = self.tree.get_nearest_config(rand_config)
             new_config = self.extend(near_config, rand_config)
@@ -87,7 +87,7 @@ class RRTMotionPlanner(object):
         #  HW3 2.2.2
         total_cost = 0
         for i in range(len(plan) - 1):
-            totat_cost += self.compute_distance(plan[i], plan[i + 1])
+            total_cost += self.bb.compute_distance(plan[i], plan[i + 1])
         return total_cost
 
     def extend(self, near_config, rand_config):

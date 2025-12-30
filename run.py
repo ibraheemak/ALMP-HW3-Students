@@ -15,6 +15,9 @@ from RRTMotionPlanner import RRTMotionPlanner
 from RRTInspectionPlanner import RRTInspectionPlanner
 from RRTStarPlanner import RRTStarPlanner
 from twoD.visualizer import Visualizer
+import time
+import matplotlib.pyplot as plt
+
 
 # MAP_DETAILS = {"json_file": "twoD/map1.json", "start": np.array([10,10]), "goal": np.array([4, 6])}
 MAP_DETAILS = {"json_file": "twoD/map2.json", "start": np.array([360, 150]), "goal": np.array([100, 200])}
@@ -43,6 +46,7 @@ def run_dot_2d_astar():
 
     # execute plan
     plan = planner.plan()
+    print("Report for epsilon = {}".format(planner.epsilon))
     print("Plan found with {} nodes expanded.".format(len(planner.expanded_nodes)))
     print("Plan cost: {}".format(compute_plan_cost(bb, plan)))
     DotVisualizer(bb).visualize_map(plan=plan, expanded_nodes=planner.expanded_nodes, show_map=True, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"])
@@ -158,11 +162,115 @@ def run_3d():
         visualizer.show_path(path)
 
 
+
+def report_part1_compare_extend_avg(n_runs=5, goal_bias=0.20):
+    MAP_DETAILS_MP = {
+        "json_file": "twoD/map_mp.json",
+        "start": np.array([0.78, -0.78, 0.0, 0.0]),
+        "goal": np.array([0.3, 0.15, 1.0, 1.1]),
+    }
+    planning_env = MapEnvironment(json_file=MAP_DETAILS_MP["json_file"], task="mp")
+    bb = BuildingBlocks2D(planning_env)
+
+    ext_modes = ["E1", "E2"]
+    results = {}
+
+    for ext in ext_modes:
+        times = []
+        costs = []
+
+        for i in range(n_runs):
+            print(f"Running RRTMotionPlanner with ext_mode={ext}, run={i + 1}")
+            planner = RRTMotionPlanner(
+                bb=bb,
+                start=MAP_DETAILS_MP["start"],
+                goal=MAP_DETAILS_MP["goal"],
+                ext_mode=ext,
+                goal_prob=goal_bias
+            )
+            t0 = time.time()
+            plan = planner.plan()
+            t1 = time.time()
+
+            times.append(t1 - t0)
+            costs.append(planner.compute_cost(plan))
+
+        avg_time = np.mean(times)
+        avg_cost = np.mean(costs)
+
+        results[ext] = {
+            "times": times,
+            "costs": costs,
+            "avg_time": avg_time,
+            "avg_cost": avg_cost
+        }
+
+        print(f"[AVG] ext={ext}, goal_bias={goal_bias}: "
+              f"time={avg_time:.3f}s, cost={avg_cost:.3f}")
+
+    return results
+
+
+def plot_extend_runtime_bars(results):
+    fig, ax = plt.subplots(figsize=(8, 4))
+
+    width = 0.35
+    x = np.arange(len(results["E1"]["times"]))
+
+    # bars
+    ax.bar(x - width/2, results["E1"]["times"], width, label="E1 runs")
+    ax.bar(x + width/2, results["E2"]["times"], width, label="E2 runs")
+
+    # averages
+    avg_E1 = np.mean(results["E1"]["times"])
+    avg_E2 = np.mean(results["E2"]["times"])
+
+    ax.axhline(avg_E1, linestyle="--", linewidth=2, label="E1 average")
+    ax.axhline(avg_E2, linestyle=":", linewidth=2, label="E2 average")
+
+    ax.set_xlabel("Run index")
+    ax.set_ylabel("Time to solution (s)")
+    ax.set_title("E1 vs E2 — Runtime per run + average")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    plt.show()
+
+
+def plot_extend_cost_bars(results):
+    fig, ax = plt.subplots(figsize=(8, 4))
+
+    width = 0.35
+    x = np.arange(len(results["E1"]["costs"]))
+
+    # bars
+    ax.bar(x - width/2, results["E1"]["costs"], width, label="E1 runs")
+    ax.bar(x + width/2, results["E2"]["costs"], width, label="E2 runs")
+
+    # averages
+    avg_E1 = np.mean(results["E1"]["costs"])
+    avg_E2 = np.mean(results["E2"]["costs"])
+
+    ax.axhline(avg_E1, linestyle="--", linewidth=2, label="E1 average")
+    ax.axhline(avg_E2, linestyle=":", linewidth=2, label="E2 average")
+
+    ax.set_xlabel("Run index")
+    ax.set_ylabel("Path cost")
+    ax.set_title("E1 vs E2 — Path cost per run + average")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    plt.show()
+
 if __name__ == "__main__":
-    # run_dot_2d_astar()
+    #run_dot_2d_astar()
     # run_dot_2d_rrt()
     # run_dot_2d_rrt_star()
-     run_2d_rrt_motion_planning()
+    # run_2d_rrt_motion_planning()
     # run_2d_rrt_inspection_planning()
     # run_2d_rrt_star_motion_planning()
     # run_3d()
+
+    results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)
+    plot_extend_runtime_bars(results)
+    plot_extend_cost_bars(results)
