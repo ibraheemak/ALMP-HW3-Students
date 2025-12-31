@@ -292,6 +292,7 @@ def report_part2_goal_bias(ext_mode_for_bias="E1", n_runs=10):
 
         results[gb] = pairs
 
+        times = np.array([p[0] for p in pairs])
         costs = np.array([p[1] for p in pairs])
 
         print(f"[Goal-bias] ext={ext_mode_for_bias}, gb={gb}: "
