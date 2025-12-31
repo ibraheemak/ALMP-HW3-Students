@@ -54,7 +54,7 @@ def run_dot_2d_astar():
 def run_dot_2d_rrt():
     planning_env = MapDotEnvironment(json_file=MAP_DETAILS["json_file"])
     bb = DotBuildingBlocks2D(planning_env)
-    planner = RRTMotionPlanner(bb=bb, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"], ext_mode="E1", goal_prob=0.01)
+    planner = RRTMotionPlanner(bb=bb, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"], ext_mode="E2", goal_prob=0.2)
 
     # execute plan
     plan = planner.plan()
@@ -191,6 +191,7 @@ def report_part1_compare_extend_avg(n_runs=5, goal_bias=0.20):
             t0 = time.time()
             plan = planner.plan()
             t1 = time.time()
+           # Visualizer(bb).visualize_plan(plan=plan, start=MAP_DETAILS["start"], goal=MAP_DETAILS["goal"])
 
             times.append(t1 - t0)
             costs.append(planner.compute_cost(plan))
@@ -262,6 +263,57 @@ def plot_extend_cost_bars(results):
 
     plt.show()
 
+
+
+def report_part2_goal_bias(ext_mode_for_bias="E1", n_runs=10):
+    MAP_DETAILS_MP = {
+        "json_file": "twoD/map_mp.json",
+        "start": np.array([0.78, -0.78, 0.0, 0.0]),
+        "goal":  np.array([0.3,  0.15, 1.0, 1.1]),
+    }
+    env_mp = MapEnvironment(json_file=MAP_DETAILS_MP["json_file"], task="mp")
+    bb_mp = BuildingBlocks2D(env_mp)
+
+    goal_biases = [0.05, 0.20]
+    results = {}  # gb -> list of (time, cost)
+
+    for gb in goal_biases:
+        pairs = []
+        for i in range(n_runs):
+            print(f"Running RRTMotionPlanner with ext_mode={ext_mode_for_bias}, goal_bias={gb}, run={i + 1}")
+            planner = RRTMotionPlanner(bb=bb_mp, start=MAP_DETAILS_MP["start"],
+                                      goal=MAP_DETAILS_MP["goal"],
+                                      ext_mode=ext_mode_for_bias, goal_prob=gb)
+            t0 = time.time()
+            plan = planner.plan()
+            t1 = time.time()
+
+            pairs.append((t1 - t0, planner.compute_cost(plan)))
+
+        results[gb] = pairs
+
+        costs = np.array([p[1] for p in pairs])
+
+        print(f"[Goal-bias] ext={ext_mode_for_bias}, gb={gb}: "
+              f"time mean={times.mean():.3f}s std={times.std(ddof=1):.3f}s, "
+              f"cost mean={costs.mean():.3f} std={costs.std(ddof=1):.3f}")
+
+    # Scatter plot time vs cost
+    plt.figure()
+    for gb in goal_biases:
+        xs = [t for (t, c) in results[gb]]
+        ys = [c for (t, c) in results[gb]]
+        plt.scatter(xs, ys, label=f"{int(gb*100)}% goal bias")
+    plt.xlabel("Run time (s)")
+    plt.ylabel("Path cost")
+    plt.title(f"RRT: time vs cost (ext={ext_mode_for_bias})")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.show()
+    plt.savefig(f"rrt_bias_scatter_ext-{ext_mode_for_bias}.png")
+    plt.close()
+
+
 if __name__ == "__main__":
     #run_dot_2d_astar()
     # run_dot_2d_rrt()
@@ -271,6 +323,8 @@ if __name__ == "__main__":
     # run_2d_rrt_star_motion_planning()
     # run_3d()
 
-    results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)
-    plot_extend_runtime_bars(results)
-    plot_extend_cost_bars(results)
+    #results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)
+    #plot_extend_runtime_bars(results)
+    #plot_extend_cost_bars(results)
+
+    report_part2_goal_bias()
