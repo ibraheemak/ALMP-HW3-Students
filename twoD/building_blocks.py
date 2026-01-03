@@ -22,8 +22,9 @@ class BuildingBlocks2D(object):
         @param prev_config Previous configuration.
         @param next_config Next configuration.
         '''
-        # TODO: HW2 4.2.1
+        # HW2 4.2.1
         return np.linalg.norm(prev_config - next_config)
+
     def sample_random_config(self, goal_prob, goal):
         """
         Sample a random configuration in the configuration space. With probability goal_prob, return the goal configuration.
@@ -96,7 +97,7 @@ class BuildingBlocks2D(object):
         Verify that the given set of links positions does not contain self collisions.
         @param robot_positions Given links positions.
         '''
-        # TODO: HW2 4.2.3
+        # HW2 4.2.3
 
         origin = np.array([0.0, 0.0])
 
@@ -304,7 +305,9 @@ class BuildingBlocks2D(object):
         @param points2 list of inspected points.
         '''
         # TODO: HW3 2.3.2
-        pass
+        return np.union1d(points1, points2)
+        # TODO: maybe we can do a bit vector instead? might be wayyy faster.
+        #  especially for the competition where we may need to call this func a lot
 
     def compute_coverage(self, inspected_points):
         '''

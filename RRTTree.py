@@ -115,6 +115,29 @@ class RRTTree(object):
 
         return knn_ids.tolist(), [self.vertices[vid].config for vid in knn_ids]
 
+    # New helpers to access stored costs
+    def get_cost(self, vid):
+        '''
+        Return the accumulated cost stored at vertex id vid.
+        '''
+        return self.vertices[vid].cost
+
+    def get_cost_for_config(self, config):
+        '''
+        Return cost for a vertex with given config (if exists), else None.
+        '''
+        v_idx = self.get_idx_for_config(config=config)
+        if v_idx is not None:
+            return self.vertices[v_idx].cost
+        return None
+
+    def update_cost_recursive(self, v, new_id, edge_cost, better_cost):
+        # TODO: finish func. syntax for v.children.
+        # TODO: self.remove_edge(v_edge)
+        self.add_edge(new_id, self.tree.get_idx_for_config(v), edge_cost=edge_cost)
+        v.set_cost(better_cost)
+        for child in v.children:
+            self.update_cost_recursive(child)
 
 class RRTVertex(object):
 

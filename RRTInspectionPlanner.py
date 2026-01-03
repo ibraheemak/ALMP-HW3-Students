@@ -26,6 +26,35 @@ class RRTInspectionPlanner(object):
         '''
         # TODO: HW3 2.3.3
         pass
+        inspected_points = []
+        """
+        bb.compute_coverage(inspected_points)
+        run RRT while 
+        """
+        while self.bb.compute_coverage(inspected_points) < self.coverage:
+        # sample point
+        # extend
+        # if added to the tree: add its inspected points to inspected points.
+        #  if inspected new points: add this node to list of nodes to visit.
+        # compute a path that goes through the nodes to visit until all points are inspected.
+        """
+        how to get an OK path from this:
+        - if a node is a parent of another node in the nodes to visit, make sure all of its children are visited before visiting other branches of the tree.
+        - first, bubble the inspected points up the tree. 
+            then, when planning a path, choose only children of the tree s.t. all of these nodes are visited. do so recursively.
+          after the bubbling, this will be like running an expansion algorithm from the root. 
+            at every step we have a list of nodes we need to visit, and every child has a list of nodes it contains.
+                we then run this recursively on the children s.t. we explore the full list.
+                    we return from the recursion when the list to explore is empty.
+            this creates a subtree inside of the original tree. now we just need to traverse the entire tree.
+                this will ensure we visit all of the nodes we inspected.  
+        """
+        """
+        for the competition: sample a goal prob with some probability. if successful, continue going for that POI until cant.
+            if successful, switch to the next POI and attempt to go for it now.
+            if not, pick a random next POI for the next goal prob hit.
+        this way we try to branch out as far as we can. if 
+        """
 
     def compute_cost(self, plan):
         '''

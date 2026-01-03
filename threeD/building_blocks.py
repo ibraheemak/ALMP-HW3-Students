@@ -45,6 +45,16 @@ class BuildingBlocks3D(object):
         @param conf - some configuration
         """
         # TODO: HW2 5.2.2- Pay attention that function is a little different than in HW2
+        """
+        TODO:
+        add a condition to the function config validity checker() to
+return False if the manipulator exceeds the plain 0.4 [m] in x-direction. Provide the function the
+configuration [130,-70, 90, -90, -90, 0][deg] (convert degrees to radians using the numpy.deg2rad()
+function) to verify that it indeed returns False.
+        """
+        head = (5, 5, 5)
+        if head[0] < 0.4:  # TODO: make sure this is in meters.
+            return False
         pass
 
 
