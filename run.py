@@ -316,8 +316,8 @@ def report_part2_goal_bias(ext_mode_for_bias="E1", n_runs=10):
 
 
 if __name__ == "__main__":
-    #run_dot_2d_astar()
-    # run_dot_2d_rrt()
+    run_dot_2d_astar()
+    #run_dot_2d_rrt()
     # run_dot_2d_rrt_star()
     # run_2d_rrt_motion_planning()
     # run_2d_rrt_inspection_planning()
@@ -328,4 +328,4 @@ if __name__ == "__main__":
     #plot_extend_runtime_bars(results)
     #plot_extend_cost_bars(results)
 
-    report_part2_goal_bias()
+    #report_part2_goal_bias()

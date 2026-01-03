@@ -46,15 +46,20 @@ class AStarPlanner(object):
         start_key = (int(start[0]), int(start[1]))
         goal_key  = (int(goal[0]),  int(goal[1]))
 
-        # Priority queue: (f, tie_breaker, node_key)
+        # OPEN priority queue: (f, tie_breaker, state_key)
         open_heap = []
         tie = 0
 
+        # Best-known g for each discovered node (regardless of OPEN/CLOSED)
         g_score = {start_key: 0.0}
         parent = {start_key: None}
-        closed = set()
 
-        # For visualization: unique expanded nodes
+        # Track membership explicitly
+        closed = set()
+        open_set = {start_key}
+        open_best_g = {start_key: 0.0}  # used to skip stale heap entries
+
+        # Visualization: unique expanded nodes
         self.expanded_nodes = []
         expanded_set = set()
 
@@ -64,10 +69,23 @@ class AStarPlanner(object):
         tie += 1
 
         while open_heap:
-            f_curr, _, curr_key = heapq.heappop(open_heap)
+            _, __, curr_key = heapq.heappop(open_heap)
 
+            # Skip if already processed
             if curr_key in closed:
                 continue
+            
+            # Skip stale heap entries (node was updated with better g after this was pushed)
+            if curr_key not in open_set:
+                continue
+            
+            # Skip if this heap entry has outdated g-value
+            if open_best_g.get(curr_key, float("inf")) != g_score.get(curr_key, float("inf")):
+                continue
+
+            # pop_min: move from OPEN to CLOSED
+            open_set.remove(curr_key)
+            open_best_g.pop(curr_key, None)
             closed.add(curr_key)
 
             # Record expansion (unique)
@@ -95,21 +113,54 @@ class AStarPlanner(object):
                     continue
 
                 step_cost = self.bb.compute_distance(curr_state, nbr_state)
-                tentative_g = g_score[curr_key] + step_cost
+                g_new = g_score[curr_key] + step_cost
 
-                # Relaxation
-                if nbr_key not in g_score or tentative_g < g_score[nbr_key]:
-                    g_score[nbr_key] = tentative_g
+                # Case A: s not in OPEN and not in CLOSED
+                if (nbr_key not in open_set) and (nbr_key not in closed):
+                    g_score[nbr_key] = g_new
                     parent[nbr_key] = curr_key
 
                     h = self.compute_heuristic(nbr_state)
-                    f = tentative_g + self.epsilon * h
+                    f = g_new + self.epsilon * h
+                    open_set.add(nbr_key)
+                    open_best_g[nbr_key] = g_new
                     heapq.heappush(open_heap, (f, tie, nbr_key))
                     tie += 1
+                    continue
+
+                # Case B: s in OPEN
+                if nbr_key in open_set:
+                    if g_new < g_score.get(nbr_key, float("inf")):
+                        g_score[nbr_key] = g_new
+                        parent[nbr_key] = curr_key
+
+                        h = self.compute_heuristic(nbr_state)
+                        f = g_new + self.epsilon * h
+                        open_best_g[nbr_key] = g_new
+                        heapq.heappush(open_heap, (f, tie, nbr_key))
+                        tie += 1
+                    continue
+
+                # Case C: s in CLOSED
+                # (nbr_key must be in closed here)
+                if nbr_key in closed:
+                    if g_new < g_score.get(nbr_key, float("inf")):
+                        g_score[nbr_key] = g_new
+                        parent[nbr_key] = curr_key
+
+                        # re-open: move from CLOSED back to OPEN
+                        closed.remove(nbr_key)
+                        open_set.add(nbr_key)
+
+                        h = self.compute_heuristic(nbr_state)
+                        f = g_new + self.epsilon * h
+                        open_best_g[nbr_key] = g_new
+                        heapq.heappush(open_heap, (f, tie, nbr_key))
+                        tie += 1
 
         # Reconstruct path
         if goal_key not in parent:
-            return []  # no path found
+            return []
 
         path_keys = []
         k = goal_key
