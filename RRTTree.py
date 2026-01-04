@@ -9,6 +9,7 @@ class RRTTree(object):
         self.task = task
         self.vertices = {}
         self.edges = {}
+        self.reverse_edges = {}
 
         # inspecion planning properties
         if self.task == "ip":
@@ -41,11 +42,18 @@ class RRTTree(object):
     def add_edge(self, sid, eid, edge_cost=0):
         '''
         Adds an edge in the tree.
-        @param sid start state ID
+        @param sid stvart state ID
         @param eid end state ID
         '''
         self.edges[eid] = sid
+        if sid not in self.reverse_edges:
+            self.reverse_edges[sid] = []
+        self.reverse_edges[sid].append(eid)
         self.vertices[eid].set_cost(cost=self.vertices[sid].cost + edge_cost)
+
+    def remove_edge(self, sid, eid):
+        self.edges.pop(eid, None)
+        self.reverse_edges[sid].remove(eid)
 
     def is_goal_exists(self, config):
         '''
@@ -112,7 +120,7 @@ class RRTTree(object):
         dists = np.array(dists)
         knn_ids = np.argpartition(dists, k)[:k]
         #knn_dists = [dists[i] for i in knn_ids]
-
+        knn_ids = np.argpartition(dists, k)[:k]
         return knn_ids.tolist(), [self.vertices[vid].config for vid in knn_ids]
 
     # New helpers to access stored costs
@@ -130,14 +138,6 @@ class RRTTree(object):
         if v_idx is not None:
             return self.vertices[v_idx].cost
         return None
-
-    def update_cost_recursive(self, v, new_id, edge_cost, better_cost):
-        # TODO: finish func. syntax for v.children.
-        # TODO: self.remove_edge(v_edge)
-        self.add_edge(new_id, self.tree.get_idx_for_config(v), edge_cost=edge_cost)
-        v.set_cost(better_cost)
-        for child in v.children:
-            self.update_cost_recursive(child)
 
 class RRTVertex(object):
 
