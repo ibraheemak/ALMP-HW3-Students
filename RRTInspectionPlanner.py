@@ -31,7 +31,7 @@ class RRTInspectionPlanner(object):
         bb.compute_coverage(inspected_points)
         run RRT while 
         """
-        while self.bb.compute_coverage(inspected_points) < self.coverage:
+        # while self.bb.compute_coverage(inspected_points) < self.coverage:
         # sample point
         # extend
         # if added to the tree: add its inspected points to inspected points.

@@ -139,6 +139,26 @@ class RRTTree(object):
             return self.vertices[v_idx].cost
         return None
 
+    def update_subtree_cost_recursive(self, parent_id):
+        """
+        Update costs of all descendants of parent_id (parent cost assumed already correct).
+        Works with vertex ids.
+        """
+        for child_id in self.reverse_edges.get(parent_id, []):
+            edge_cost = self.bb.compute_distance(self.vertices[parent_id].config,
+                                                 self.vertices[child_id].config)
+            self.vertices[child_id].set_cost(self.vertices[parent_id].cost + edge_cost)
+            self.update_subtree_cost_recursive(child_id)
+
+    def update_subtree(self, v_id, new_parent_id, edge_cost):
+        """
+        Reparent vertex v_id to new_parent_id and update costs for v_id subtree.
+        """
+        old_parent = self.edges[v_id]
+        self.remove_edge(old_parent, v_id)
+        self.add_edge(new_parent_id, v_id, edge_cost=edge_cost)
+        self.update_subtree_cost_recursive(v_id)
+
 class RRTVertex(object):
 
     def __init__(self, config, cost=0, inspected_points=None):

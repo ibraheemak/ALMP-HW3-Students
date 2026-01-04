@@ -93,7 +93,7 @@ class RRTMotionPlanner(object):
             total_cost += self.bb.compute_distance(plan[i], plan[i + 1])
         return total_cost
 
-    def extend(self, near_config, rand_config):
+    def extend(self, near_config, rand_config, max_step_size = 0.7):
         '''
         Compute and return a new configuration for the sampled one.
         @param near_config The nearest configuration to the sampled configuration.
@@ -112,7 +112,7 @@ class RRTMotionPlanner(object):
             return rand
 
         if self.ext_mode == "E2":
-            eta = 0.7  # Small step size in radians 
+            eta = max_step_size  # Small step size in radians
             if dist <= eta:
                 return rand 
             step = (eta / dist) * diff

@@ -152,7 +152,7 @@ class Visualizer:
             plan_configs_interpolated += list(interpolated_configs)
 
         # add goal vertex
-        plan_configs_interpolated.append(plan_configs[-1])
+        # plan_configs_interpolated.append(plan_configs[-1])
 
         return plan_configs_interpolated
 
