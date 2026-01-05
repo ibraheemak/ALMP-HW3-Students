@@ -303,8 +303,20 @@ class BuildingBlocks2D(object):
         @param points1 list of inspected points.
         @param points2 list of inspected points.
         '''
-        # TODO: HW3 2.3.2
-        pass
+        # HW3 2.3.2
+        # Handle empty cases
+        if len(points1) == 0:
+            return points2
+        if len(points2) == 0:
+            return points1
+        
+        # Combine both sets of points
+        combined_points = np.vstack([points1, points2])
+        
+        # Remove duplicate points by finding unique rows
+        unique_points = np.unique(combined_points, axis=0)
+        
+        return unique_points
 
     def compute_coverage(self, inspected_points):
         '''

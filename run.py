@@ -103,7 +103,7 @@ def run_2d_rrt_inspection_planning():
     MAP_DETAILS = {"json_file": "twoD/map_ip.json", "start": np.array([0.78, -0.78, 0.0, 0.0]), "goal": np.array([0.3, 0.15, 1.0, 1.1])}
     planning_env = MapEnvironment(json_file=MAP_DETAILS["json_file"], task="ip")
     bb = BuildingBlocks2D(planning_env)
-    planner = RRTInspectionPlanner(bb=bb, start=MAP_DETAILS["start"], ext_mode="E2", goal_prob=0.01, coverage=0.5)
+    planner = RRTInspectionPlanner(bb=bb, start=MAP_DETAILS["start"], ext_mode="E2", goal_prob=0.01, coverage=0.75)
 
     # execute plan
     plan = planner.plan()
@@ -315,8 +315,153 @@ def report_part2_goal_bias(ext_mode_for_bias="E1", n_runs=10):
     plt.close()
 
 
+def report_inspection_planning_performance(n_runs=10):
+    """
+    Report performance for inspection planning with coverage of 0.5 and 0.75,
+    averaged over n_runs executions for each.
+    """
+    MAP_DETAILS_IP = {"json_file": "twoD/map_ip.json", "start": np.array([0.78, -0.78, 0.0, 0.0]), "goal": np.array([0.3, 0.15, 1.0, 1.1])}
+    planning_env = MapEnvironment(json_file=MAP_DETAILS_IP["json_file"], task="ip")
+    bb = BuildingBlocks2D(planning_env)
+
+    
+    coverages = [0.5, 0.75]
+    results = {}
+    
+    print("\n" + "="*80)
+    print("INSPECTION PLANNING PERFORMANCE REPORT")
+    print("="*80 + "\n")
+    
+    for coverage in coverages:
+        times = []
+        costs = []
+        
+        print(f"Running {n_runs} experiments for coverage = {coverage}...")
+        print("-" * 60)
+        
+        for i in range(n_runs):
+            print(f"  Run {i + 1}/{n_runs}...", end=" ")
+            
+            planner = RRTInspectionPlanner(
+                bb=bb,
+                start=MAP_DETAILS_IP["start"],
+                ext_mode="E2",
+                goal_prob=0.01,
+                coverage=coverage
+            )
+            
+            t0 = time.time()
+            plan = planner.plan()
+            t1 = time.time()
+            
+            run_time = t1 - t0
+            path_cost = planner.compute_cost(plan) if plan is not None else 0.0
+            
+            times.append(run_time)
+            costs.append(path_cost)
+            
+            print(f"Time: {run_time:.3f}s, Cost: {path_cost:.3f}")
+        
+        # Calculate statistics
+        times_array = np.array(times)
+        costs_array = np.array(costs)
+        
+        results[coverage] = {
+            "times": times,
+            "costs": costs,
+            "avg_time": times_array.mean(),
+            "std_time": times_array.std(ddof=1),
+            "avg_cost": costs_array.mean(),
+            "std_cost": costs_array.std(ddof=1)
+        }
+        
+        print(f"\n  Results for coverage = {coverage}:")
+        print(f"    Average execution time: {results[coverage]['avg_time']:.3f} , {results[coverage]['std_time']:.3f} seconds")
+        print(f"    Average path cost:      {results[coverage]['avg_cost']:.3f} , {results[coverage]['std_cost']:.3f}")
+        print()
+    
+    # Summary comparison
+    print("="*80)
+    print("SUMMARY")
+    print("="*80)
+    for coverage in coverages:
+        print(f"\nCoverage {coverage}:")
+        print(f"  Execution Time: avg={results[coverage]['avg_time']:.3f} , std={results[coverage]['std_time']:.3f} s")
+        print(f"  Path Cost:      avg{results[coverage]['avg_cost']:.3f} , std={results[coverage]['std_cost']:.3f}")
+
+    # Create visualization
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    
+    colors = ['steelblue', 'coral']
+    
+    # Plot 1: Execution Time - all runs as dots + average lines
+    for idx, coverage in enumerate(coverages):
+        times = results[coverage]['times']
+        avg_time = results[coverage]['avg_time']
+        std_time = results[coverage]['std_time']
+        
+        # Plot individual runs as scatter points with iteration number on x-axis
+        x_positions = list(range(1, len(times) + 1))  # 1, 2, 3, ..., 10
+        ax1.scatter(x_positions, times, 
+                   alpha=0.7, s=100, color=colors[idx], 
+                   label=f'Coverage {coverage}', edgecolors='black', linewidth=0.5)
+        
+        # Plot average as horizontal line across all iterations
+        ax1.axhline(avg_time, color=colors[idx], linewidth=2.5, 
+                   linestyle='--', alpha=0.8, label=f'Coverage {coverage} (avg)')
+        
+        # Add text annotation for avg and std
+        ax1.text(len(times) + 0.5, avg_time, 
+                f'avg={avg_time:.2f}s\nstd={std_time:.2f}s',
+                fontsize=9, va='center', 
+                bbox=dict(boxstyle='round,pad=0.3', facecolor=colors[idx], alpha=0.3))
+    
+    ax1.set_xlabel('Run Number', fontsize=12)
+    ax1.set_ylabel('Execution Time (seconds)', fontsize=12)
+    ax1.set_title('Execution Time by Coverage\n(Individual Runs + Average)', fontsize=13, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc='best', fontsize=9)
+    ax1.set_xticks(range(1, n_runs + 1))
+    
+    # Plot 2: Path Cost - all runs as dots + average lines
+    for idx, coverage in enumerate(coverages):
+        costs = results[coverage]['costs']
+        avg_cost = results[coverage]['avg_cost']
+        std_cost = results[coverage]['std_cost']
+        
+        # Plot individual runs as scatter points with iteration number on x-axis
+        x_positions = list(range(1, len(costs) + 1))  # 1, 2, 3, ..., 10
+        ax2.scatter(x_positions, costs, 
+                   alpha=0.7, s=100, color=colors[idx], 
+                   label=f'Coverage {coverage}', edgecolors='black', linewidth=0.5)
+        
+        # Plot average as horizontal line across all iterations
+        ax2.axhline(avg_cost, color=colors[idx], linewidth=2.5, 
+                   linestyle='--', alpha=0.8, label=f'Coverage {coverage} (avg)')
+        
+        # Add text annotation for avg and std
+        ax2.text(len(costs) + 0.5, avg_cost, 
+                f'μ={avg_cost:.2f}\nσ={std_cost:.2f}',
+                fontsize=9, va='center',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor=colors[idx], alpha=0.3))
+    
+    ax2.set_xlabel('Run Number', fontsize=12)
+    ax2.set_ylabel('Path Cost', fontsize=12)
+    ax2.set_title('Path Cost by Coverage\n(Individual Runs + Average)', fontsize=13, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend(loc='best', fontsize=9)
+    ax2.set_xticks(range(1, n_runs + 1))
+    
+    plt.tight_layout()
+    plt.savefig('inspection_planning_performance.png', dpi=150, bbox_inches='tight')
+    print(f"\nPlot saved as 'inspection_planning_performance.png'")
+    plt.show()
+    
+    return results
+
+
 if __name__ == "__main__":
-    run_dot_2d_astar()
+    #run_dot_2d_astar()
     #run_dot_2d_rrt()
     # run_dot_2d_rrt_star()
     # run_2d_rrt_motion_planning()
@@ -329,3 +474,6 @@ if __name__ == "__main__":
     #plot_extend_cost_bars(results)
 
     #report_part2_goal_bias()
+    
+    # Run inspection planning performance report
+    report_inspection_planning_performance(n_runs=10)
