@@ -412,7 +412,7 @@ def report_inspection_planning_performance(n_runs=10):
         
         # Add text annotation for avg and std
         ax1.text(len(times) + 0.5, avg_time, 
-                f'avg={avg_time:.2f}s\nstd={std_time:.2f}s',
+                f'avg={avg_time:.2f}s',
                 fontsize=9, va='center', 
                 bbox=dict(boxstyle='round,pad=0.3', facecolor=colors[idx], alpha=0.3))
     
@@ -441,7 +441,7 @@ def report_inspection_planning_performance(n_runs=10):
         
         # Add text annotation for avg and std
         ax2.text(len(costs) + 0.5, avg_cost, 
-                f'μ={avg_cost:.2f}\nσ={std_cost:.2f}',
+                f'avg={avg_cost:.2f}',
                 fontsize=9, va='center',
                 bbox=dict(boxstyle='round,pad=0.3', facecolor=colors[idx], alpha=0.3))
     
