@@ -535,6 +535,119 @@ def run_3d_rrtstar_planwithstats_test():
 
 
 
+def run_3d_hw3_save_all_and_mark_best():
+    ur_params = UR5e_PARAMS(inflation_factor=1)
+    env = Environment(env_idx=2)
+    transform = Transform(ur_params)
+
+    bb = BuildingBlocks3D(
+        transform=transform,
+        ur_params=ur_params,
+        env=env,
+        resolution=0.1
+    )
+
+    # Sanity check (HW3 3.2 part 1)
+    test_conf = np.deg2rad([130, -70, 90, -90, -90, 0])
+    print("Sanity check (should be False):", bb.config_validity_checker(test_conf))
+
+    # Start / Goal
+    start = np.deg2rad([110, -70, 90, -90, -90, 0])
+    goal  = np.deg2rad([50,  -80, 90, -90, -90, 0])
+
+    max_step_sizes = [0.05, 0.075, 0.1, 0.125, 0.2, 0.25, 0.3, 0.4]
+    p_biases = [0.05, 0.2]
+    n_runs = 20
+
+    # Root experiments folder
+    exps_root = os.path.join(os.getcwd(), "exps")
+    os.makedirs(exps_root, exist_ok=True)
+
+    # Track GLOBAL best
+    best_cost = np.inf
+    best_info = None   # dict with metadata
+
+    for p_bias in p_biases:
+        for step in max_step_sizes:
+            print(f"\n=== p_bias={p_bias}, max_step_size={step} ===")
+
+            for run_idx in range(1, n_runs + 1):
+                print(f"  Run {run_idx}/{n_runs}...", end=" ")
+
+                planner = RRTStarPlanner(
+                    bb=bb,
+                    ext_mode="E2",
+                    max_step_size=step,
+                    start=start,
+                    goal=goal,
+                    max_itr=2000,
+                    stop_on_goal=False,   
+                    goal_prob=p_bias
+                )
+
+                path = planner.plan()
+
+                if path is None or len(path) == 0:
+                    print("no solution")
+                    continue
+
+                cost = planner.compute_cost(path)
+                print(f"cost={cost:.4f}")
+
+                # ---- Save THIS run (same style as example) ----
+                now = datetime.now()
+                time_str = now.strftime("%Y-%m-%d_%H-%M-%S")
+
+                run_folder = os.path.join(
+                    exps_root,
+                    f"exp_pbias_{p_bias}_max_step_size_{step}_run_{run_idx}_{time_str}"
+                )
+                os.makedirs(run_folder, exist_ok=True)
+
+                np.save(os.path.join(run_folder, "path.npy"), path)
+
+                with open(os.path.join(run_folder, "stats.txt"), "w") as f:
+                    f.write(f"p_bias: {p_bias}\n")
+                    f.write(f"max_step_size: {step}\n")
+                    f.write(f"run_idx: {run_idx}\n")
+                    f.write(f"path_cost: {cost}\n")
+                    f.write(f"num_states: {len(path)}\n")
+
+                # ---- Update GLOBAL best ----
+                if cost < best_cost:
+                    best_cost = cost
+                    best_info = {
+                        "p_bias": p_bias,
+                        "max_step_size": step,
+                        "run_idx": run_idx,
+                        "cost": cost,
+                        "folder": run_folder,
+                        "path": path
+                    }
+
+    # -------- FINAL SUMMARY (this is what you wanted) --------
+    print("\n" + "="*70)
+    if best_info is None:
+        print("NO solution found in any run.")
+        return
+
+    print("BEST PATH FOUND ✅")
+    print(f"  cost          : {best_info['cost']}")
+    print(f"  p_bias        : {best_info['p_bias']}")
+    print(f"  max_step_size : {best_info['max_step_size']}")
+    print(f"  run_idx       : {best_info['run_idx']}")
+    print(f"  folder        : {best_info['folder']}")
+    print("="*70 + "\n")
+
+    # Optional: visualize best path immediately
+    visualizer = Visualize_UR(
+        ur_params,
+        env=env,
+        transform=transform,
+        bb=bb
+    )
+    visualizer.show_path(best_info["path"])
+
 
 
 
