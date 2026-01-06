@@ -45,51 +45,61 @@ class BuildingBlocks3D(object):
             return np.random.uniform(low=-self.single_mechanical_limit, high=self.single_mechanical_limit, size=len(goal_conf))
 
     def config_validity_checker(self, conf) -> bool:
-        """check for collision in given configuration, arm-arm and arm-obstacle
-        return False if in collision
-        @param conf - some configuration
         """
-        # TODO: HW2 5.2.2- Pay attention that function is a little different than in HW2
+        Check if a configuration is collision-free.
+        Returns False if any collision is detected.
         """
-        TODO:
-        add a condition to the function config validity checker() to
-        return False if the manipulator exceeds the plain 0.4 [m] in x-direction. Provide the function the
-        configuration [130,-70, 90, -90, -90, 0][deg] (convert degrees to radians using the numpy.deg2rad()
-        function) to verify that it indeed returns False.
-        """
-        sphere_coords = self.transform.conf2sphere_coords(conf) # figure out the location of every link using transforms
-        for link, spheres in sphere_coords.items():
-            for s in spheres:
-                if s[0] > 0.4:   # x-coordinate in meters
-                    return False
-        
-        # HW2 5.2.2
-        collisions = self.possible_link_collisions
+        sphere_coords = self.transform.conf2sphere_coords(conf)
         radii = self.ur_params.sphere_radius
-        for coli in collisions:
-            link1, link2 = coli
-            # check that the spheres dont intersect
-            for s1 in sphere_coords[link1]: # for sphere in link1
-                for s2 in sphere_coords[link2]: # for sphere in link2
-                    if np.linalg.norm(s1 - s2) < radii[link1] + radii[link2]:
-                        # print("internal col")
-                        return False
-        # check collisions with the floor
-        links = self.ur_params.ur_links
-        obstacles, obs_radius = self.env.obstacles, self.env.radius
-        for link in links:
-            for sphere in sphere_coords[link]:
-                # check collision with the floor, but not for the shoulder link since it always touches the ground
-                if link != 'shoulder_link' and sphere[2] < radii[link]:
-                    # print("floor col. sphere = " + str(sphere) + " raddi[link] = " + str(radii[link]))
+
+        # ------------------------------------------------------------
+        # 1) Plane constraint: x <= 0.4 for all spheres
+        # ------------------------------------------------------------
+        for spheres in sphere_coords.values():
+            if np.any(spheres[:, 0] > 0.4):
+                return False
+
+        # ------------------------------------------------------------
+        # 2) Self-collision: link-link
+        # ------------------------------------------------------------
+        for link1, link2 in self.possible_link_collisions:
+            s1 = sphere_coords[link1]      # (n1, 3)
+            s2 = sphere_coords[link2]      # (n2, 3)
+            r_sum = radii[link1] + radii[link2]
+
+            # pairwise distances: broadcasting
+            # result shape: (n1, n2)
+            dists = np.linalg.norm(s1[:, None, :] - s2[None, :, :], axis=2)
+
+            if np.any(dists < r_sum):
+                return False
+
+        # ------------------------------------------------------------
+        # 3) Floor + obstacle collisions
+        # ------------------------------------------------------------
+        obstacles = self.env.obstacles
+        obs_r = self.env.radius
+
+        for link in self.ur_params.ur_links:
+            spheres = sphere_coords[link]
+            r_link = radii[link]
+
+            # floor collision (except shoulder)
+            if link != "shoulder_link":
+                if np.any(spheres[:, 2] < r_link):
                     return False
-                # check collision with obstacles
-                for obs in obstacles:
-                    if np.linalg.norm(sphere-obs) < radii[link] + obs_radius:
-                        # print("obs col. sphere = " + str(sphere) + " obs = " + str(obs))
-                        return False
-        # did not find collisions of any kind. return true.
+
+            # obstacle collision
+            if obstacles is not None and len(obstacles) > 0:
+                dists = np.linalg.norm(
+                    spheres[:, None, :] - obstacles[None, :, :],
+                    axis=2
+                )
+                if np.any(dists < (r_link + obs_r)):
+                    return False
+
         return True
+
 
 
     def edge_validity_checker(self, prev_conf, current_conf) -> bool:

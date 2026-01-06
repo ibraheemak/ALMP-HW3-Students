@@ -136,8 +136,7 @@ class RRTStarPlanner(RRTMotionPlanner):
         success = []
 
         # run until time budget expires (same as plan)
-        while (time.time() - start_time) < max_time_secs and (
-                not (self.max_itr is not None and iteration > self.max_itr)):
+        while (iteration < self.max_itr):
 
             iteration += 1
             rand_config = self.bb.sample_random_config(self.goal_prob, self.goal)
@@ -159,6 +158,7 @@ class RRTStarPlanner(RRTMotionPlanner):
                     success.append(0)
                 else:
                     # IMPORTANT: use current tree cost to goal_id (may improve due to rewiring)
+                    print(f"RRT* iteration {iteration}: best cost = {self.tree.get_cost(goal_id)}")
                     costs.append(self.tree.get_cost(goal_id))
                     success.append(1)
 

@@ -18,6 +18,7 @@ from RRTStarPlanner import RRTStarPlanner
 from twoD.edited_visualizer import Visualizer
 import time
 import matplotlib.pyplot as plt
+import concurrent.futures as cf
 
 
 # MAP_DETAILS = {"json_file": "twoD/map1.json", "start": np.array([10,10]), "goal": np.array([4, 6])}
@@ -491,7 +492,7 @@ def run_3d_rrtstar_planwithstats_test():
     planner = RRTStarPlanner(
         bb=bb,
         ext_mode="E2",
-        max_step_size=0.2,     # try also 0.05, 0.4 later
+        max_step_size=0.25,     # try also 0.05, 0.4 later
         start=start,
         goal=goal,
         max_itr=2000,          # HW3 requirement
@@ -534,121 +535,226 @@ def run_3d_rrtstar_planwithstats_test():
     return path, iters, costs, success
 
 
+def _rrtstar_one_run_worker(args):
+    """
+    Runs ONE RRT* run in a separate process.
+    Returns only Python/numpy objects (picklable).
+    IMPORTANT: define this at top-level (not inside another function).
+    """
+    p_bias, step, run_idx, log_every = args
 
-def run_3d_hw3_save_all_and_mark_best():
+    # Build environment inside the process
+    ur_params = UR5e_PARAMS(inflation_factor=1)
+    env = Environment(env_idx=2)
+    transform = Transform(ur_params)
+    bb = BuildingBlocks3D(transform=transform, ur_params=ur_params, env=env, resolution=0.1)
+
+    start = np.deg2rad([110, -70, 90, -90, -90, 0])
+    goal  = np.deg2rad([50,  -80, 90, -90, -90, 0])
+
+    planner = RRTStarPlanner(
+        bb=bb,
+        ext_mode="E2",
+        max_step_size=step,
+        start=start,
+        goal=goal,
+        max_itr=2000,
+        stop_on_goal=False,
+        goal_prob=p_bias
+    )
+
+    path, iters, costs, success = planner.plan_with_stats(log_every=log_every)
+
+    # compute final cost if path exists
+    if path is None or len(path) == 0:
+        final_cost = np.inf
+        path_out = None
+    else:
+        final_cost = planner.compute_cost(path)
+        path_out = path
+
+    return {
+        "p_bias": p_bias,
+        "step": step,
+        "run_idx": run_idx,
+        "iters": iters,
+        "costs": costs,
+        "success": success,
+        "final_cost": final_cost,
+        "path": path_out
+    }
+
+
+def _avg_cost_ignore_inf(cost_matrix):
+    """
+    cost_matrix: shape (n_runs, n_points), contains finite costs or np.inf
+    returns avg_cost: shape (n_points,), where each point is averaged only
+    across runs that are finite at that point. If none finite => np.nan
+    """
+    avg = []
+    for j in range(cost_matrix.shape[1]):
+        vals = cost_matrix[:, j]
+        finite = vals[np.isfinite(vals)]
+        avg.append(np.mean(finite) if finite.size > 0 else np.nan)
+    return np.array(avg)
+
+
+
+def run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=None):
+    # Build once in main process (for sanity check + visualization only)
     ur_params = UR5e_PARAMS(inflation_factor=1)
     env = Environment(env_idx=2)
     transform = Transform(ur_params)
 
-    bb = BuildingBlocks3D(
-        transform=transform,
-        ur_params=ur_params,
-        env=env,
-        resolution=0.1
-    )
+    bb = BuildingBlocks3D(transform=transform, ur_params=ur_params, env=env, resolution=0.1)
 
-    # Sanity check (HW3 3.2 part 1)
+    # Sanity check
     test_conf = np.deg2rad([130, -70, 90, -90, -90, 0])
     print("Sanity check (should be False):", bb.config_validity_checker(test_conf))
 
-    # Start / Goal
-    start = np.deg2rad([110, -70, 90, -90, -90, 0])
-    goal  = np.deg2rad([50,  -80, 90, -90, -90, 0])
+    # Your current small test values (change later to full list)
+    max_step_sizes = [0.05, 0.07]
+    p_biases = [0.2]
+    n_runs = 2
 
-    max_step_sizes = [0.05, 0.075, 0.1, 0.125, 0.2, 0.25, 0.3, 0.4]
-    p_biases = [0.05, 0.2]
-    n_runs = 20
-
-    # Root experiments folder
+    # Root folder for saving all runs
     exps_root = os.path.join(os.getcwd(), "exps")
     os.makedirs(exps_root, exist_ok=True)
 
-    # Track GLOBAL best
+    # Track global best final path
     best_cost = np.inf
-    best_info = None   # dict with metadata
+    best_info = None  # dict
 
+    results = {pb: {} for pb in p_biases}
+
+    # We parallelize the runs PER (p_bias, step)
     for p_bias in p_biases:
         for step in max_step_sizes:
             print(f"\n=== p_bias={p_bias}, max_step_size={step} ===")
 
-            for run_idx in range(1, n_runs + 1):
-                print(f"  Run {run_idx}/{n_runs}...", end=" ")
+            jobs = [(p_bias, step, run_idx, log_every) for run_idx in range(1, n_runs + 1)]
 
-                planner = RRTStarPlanner(
-                    bb=bb,
-                    ext_mode="E2",
-                    max_step_size=step,
-                    start=start,
-                    goal=goal,
-                    max_itr=2000,
-                    stop_on_goal=False,   
-                    goal_prob=p_bias
-                )
+            # Run in parallel
+            run_outputs = []
+            with cf.ProcessPoolExecutor(max_workers=n_workers) as executor:
+                for out in executor.map(_rrtstar_one_run_worker, jobs):
+                    run_outputs.append(out)
 
-                path = planner.plan()
+            # Collect logs over runs (same logic as your serial code)
+            all_costs = []
+            all_success = []
+            iters_ref = None
 
+            for out in run_outputs:
+                run_idx = out["run_idx"]
+                iters = out["iters"]
+                costs = out["costs"]
+                success = out["success"]
+                path = out["path"]
+                final_cost = out["final_cost"]
+
+                # store reference iters (should match across runs)
+                if iters_ref is None:
+                    iters_ref = iters
+                else:
+                    if len(iters) != len(iters_ref) or np.any(iters != iters_ref):
+                        raise ValueError("iters mismatch across runs. Ensure plan_with_stats logs same iters.")
+
+                all_costs.append(costs)
+                all_success.append(success)
+
+                # Save final path if exists (save ONLY in main process)
                 if path is None or len(path) == 0:
-                    print("no solution")
-                    continue
+                    print(f"  Run {run_idx}/{n_runs}... no solution")
+                else:
+                    print(f"  Run {run_idx}/{n_runs}... final_cost={final_cost:.4f}")
 
-                cost = planner.compute_cost(path)
-                print(f"cost={cost:.4f}")
+                    now = datetime.now()
+                    time_str = now.strftime("%Y-%m-%d_%H-%M-%S")
+                    run_folder = os.path.join(
+                        exps_root,
+                        f"exp_pbias_{p_bias}_max_step_size_{step}_run_{run_idx}_{time_str}"
+                    )
+                    os.makedirs(run_folder, exist_ok=True)
+                    np.save(os.path.join(run_folder, "path.npy"), path)
+                    with open(os.path.join(run_folder, "stats.txt"), "w") as f:
+                        f.write(f"p_bias: {p_bias}\n")
+                        f.write(f"max_step_size: {step}\n")
+                        f.write(f"run_idx: {run_idx}\n")
+                        f.write(f"path_cost: {final_cost}\n")
+                        f.write(f"num_states: {len(path)}\n")
 
-                # ---- Save THIS run (same style as example) ----
-                now = datetime.now()
-                time_str = now.strftime("%Y-%m-%d_%H-%M-%S")
+                    # update global best
+                    if final_cost < best_cost:
+                        best_cost = final_cost
+                        best_info = {
+                            "p_bias": p_bias,
+                            "max_step_size": step,
+                            "run_idx": run_idx,
+                            "cost": final_cost,
+                            "folder": run_folder,
+                            "path": path
+                        }
 
-                run_folder = os.path.join(
-                    exps_root,
-                    f"exp_pbias_{p_bias}_max_step_size_{step}_run_{run_idx}_{time_str}"
-                )
-                os.makedirs(run_folder, exist_ok=True)
+            all_costs = np.array(all_costs)
+            all_success = np.array(all_success)
 
-                np.save(os.path.join(run_folder, "path.npy"), path)
+            avg_cost = _avg_cost_ignore_inf(all_costs)
+            success_rate = 100.0 * np.mean(all_success, axis=0)
 
-                with open(os.path.join(run_folder, "stats.txt"), "w") as f:
-                    f.write(f"p_bias: {p_bias}\n")
-                    f.write(f"max_step_size: {step}\n")
-                    f.write(f"run_idx: {run_idx}\n")
-                    f.write(f"path_cost: {cost}\n")
-                    f.write(f"num_states: {len(path)}\n")
+            results[p_bias][step] = {
+                "iters": iters_ref,
+                "avg_cost": avg_cost,
+                "success_rate": success_rate
+            }
 
-                # ---- Update GLOBAL best ----
-                if cost < best_cost:
-                    best_cost = cost
-                    best_info = {
-                        "p_bias": p_bias,
-                        "max_step_size": step,
-                        "run_idx": run_idx,
-                        "cost": cost,
-                        "folder": run_folder,
-                        "path": path
-                    }
-
-    # -------- FINAL SUMMARY (this is what you wanted) --------
-    print("\n" + "="*70)
+    # ------------------- PRINT BEST -------------------
+    print("\n" + "=" * 70)
     if best_info is None:
         print("NO solution found in any run.")
-        return
+    else:
+        print("BEST PATH FOUND ✅")
+        print(f"  cost          : {best_info['cost']}")
+        print(f"  p_bias        : {best_info['p_bias']}")
+        print(f"  max_step_size : {best_info['max_step_size']}")
+        print(f"  run_idx       : {best_info['run_idx']}")
+        print(f"  folder        : {best_info['folder']}")
+    print("=" * 70 + "\n")
 
-    print("BEST PATH FOUND ✅")
-    print(f"  cost          : {best_info['cost']}")
-    print(f"  p_bias        : {best_info['p_bias']}")
-    print(f"  max_step_size : {best_info['max_step_size']}")
-    print(f"  run_idx       : {best_info['run_idx']}")
-    print(f"  folder        : {best_info['folder']}")
-    print("="*70 + "\n")
+    # ------------------- PLOTS -------------------
+    for p_bias in p_biases:
+        # Cost figure
+        plt.figure()
+        for step in max_step_sizes:
+            it = results[p_bias][step]["iters"]
+            avg_cost = results[p_bias][step]["avg_cost"]
+            plt.plot(it, avg_cost, label=f"step={step}")
+        plt.xlabel("Iteration number")
+        plt.ylabel("Average cost (only successful runs)")
+        plt.title(f"Cost vs Iteration (p_bias={p_bias})")
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.show()
 
-    # Optional: visualize best path immediately
-    visualizer = Visualize_UR(
-        ur_params,
-        env=env,
-        transform=transform,
-        bb=bb
-    )
-    visualizer.show_path(best_info["path"])
+        # Success figure
+        plt.figure()
+        for step in max_step_sizes:
+            it = results[p_bias][step]["iters"]
+            sr = results[p_bias][step]["success_rate"]
+            plt.plot(it, sr, label=f"step={step}")
+        plt.xlabel("Iteration number")
+        plt.ylabel("Success rate (%)")
+        plt.title(f"Success Rate vs Iteration (p_bias={p_bias})")
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.show()
 
+    # Optional: visualize best path
+    if best_info is not None:
+        visualizer = Visualize_UR(ur_params, env=env, transform=transform, bb=bb)
+        visualizer.show_path(best_info["path"])
 
+    return results, best_info
 
 
 if __name__ == "__main__":
@@ -659,7 +765,8 @@ if __name__ == "__main__":
     # run_2d_rrt_inspection_planning()
     #run_2d_rrt_star_motion_planning()
     #run_3d()
-    #run_3d_rrtstar_planwithstats_test()
+    run_3d_rrtstar_planwithstats_test()
+    #run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=8)
 
     #results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)
     #plot_extend_runtime_bars(results)
