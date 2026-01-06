@@ -9,6 +9,7 @@ class RRTTree(object):
         self.task = task
         self.vertices = {}
         self.edges = {}
+        self.reverse_edges = {}
 
         # inspecion planning properties
         if self.task == "ip":
@@ -41,11 +42,18 @@ class RRTTree(object):
     def add_edge(self, sid, eid, edge_cost=0):
         '''
         Adds an edge in the tree.
-        @param sid start state ID
+        @param sid stvart state ID
         @param eid end state ID
         '''
         self.edges[eid] = sid
+        if sid not in self.reverse_edges:
+            self.reverse_edges[sid] = []
+        self.reverse_edges[sid].append(eid)
         self.vertices[eid].set_cost(cost=self.vertices[sid].cost + edge_cost)
+
+    def remove_edge(self, sid, eid):
+        self.edges.pop(eid, None)
+        self.reverse_edges[sid].remove(eid)
 
     def is_goal_exists(self, config):
         '''
@@ -112,9 +120,44 @@ class RRTTree(object):
         dists = np.array(dists)
         knn_ids = np.argpartition(dists, k)[:k]
         #knn_dists = [dists[i] for i in knn_ids]
-
+        knn_ids = np.argpartition(dists, k)[:k]
         return knn_ids.tolist(), [self.vertices[vid].config for vid in knn_ids]
 
+    # New helpers to access stored costs
+    def get_cost(self, vid):
+        '''
+        Return the accumulated cost stored at vertex id vid.
+        '''
+        return self.vertices[vid].cost
+
+    def get_cost_for_config(self, config):
+        '''
+        Return cost for a vertex with given config (if exists), else None.
+        '''
+        v_idx = self.get_idx_for_config(config=config)
+        if v_idx is not None:
+            return self.vertices[v_idx].cost
+        return None
+
+    def update_subtree_cost_recursive(self, parent_id):
+        """
+        Update costs of all descendants of parent_id (parent cost assumed already correct).
+        Works with vertex ids.
+        """
+        for child_id in self.reverse_edges.get(parent_id, []):
+            edge_cost = self.bb.compute_distance(self.vertices[parent_id].config,
+                                                 self.vertices[child_id].config)
+            self.vertices[child_id].set_cost(self.vertices[parent_id].cost + edge_cost)
+            self.update_subtree_cost_recursive(child_id)
+
+    def update_subtree(self, v_id, new_parent_id, edge_cost):
+        """
+        Reparent vertex v_id to new_parent_id and update costs for v_id subtree.
+        """
+        old_parent = self.edges[v_id]
+        self.remove_edge(old_parent, v_id)
+        self.add_edge(new_parent_id, v_id, edge_cost=edge_cost)
+        self.update_subtree_cost_recursive(v_id)
 
 class RRTVertex(object):
 

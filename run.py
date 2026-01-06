@@ -14,7 +14,8 @@ from AStarPlanner import AStarPlanner
 from RRTMotionPlanner import RRTMotionPlanner
 from RRTInspectionPlanner import RRTInspectionPlanner
 from RRTStarPlanner import RRTStarPlanner
-from twoD.visualizer import Visualizer
+# from twoD.visualizer import Visualizer
+from twoD.edited_visualizer import Visualizer
 import time
 import matplotlib.pyplot as plt
 
@@ -77,6 +78,7 @@ def run_2d_rrt_star_motion_planning():
     }
     planning_env = MapEnvironment(json_file=MAP_DETAILS["json_file"], task="mp")
     bb = BuildingBlocks2D(planning_env)
+    vis = Visualizer(bb)
     planner = RRTStarPlanner(
         bb=bb,
         start=MAP_DETAILS["start"],
@@ -84,6 +86,7 @@ def run_2d_rrt_star_motion_planning():
         ext_mode="E2",
         goal_prob=0.05,
         max_step_size=0.3,
+        visualizer=vis
     )
     # execute plan
     plan = planner.plan()
@@ -466,7 +469,7 @@ if __name__ == "__main__":
     # run_dot_2d_rrt_star()
     # run_2d_rrt_motion_planning()
     # run_2d_rrt_inspection_planning()
-    # run_2d_rrt_star_motion_planning()
+    run_2d_rrt_star_motion_planning()
     # run_3d()
 
     #results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)

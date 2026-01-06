@@ -21,6 +21,24 @@ class RRTMotionPlanner(object):
         # set visualizer for real-time visualization
         self.visualizer = visualizer
 
+    def validate_checks(self, near_config, new_config):
+        if new_config is None or (
+                not self.bb.config_validity_checker(new_config)) or (
+                not self.bb.edge_validity_checker(near_config, new_config)):
+            return False
+        return True
+
+    def reconstruct_path(self, goal_id):
+        path = []
+        curr = goal_id
+        while True:
+            path.append(self.tree.vertices[curr].config)
+            if curr == self.tree.get_root_id():
+                break
+            curr = self.tree.edges[curr]
+        path.reverse()
+        return path
+
     def plan(self):
         '''
         Compute and return the plan. The function should return a numpy array containing the states in the configuration space.
@@ -46,13 +64,7 @@ class RRTMotionPlanner(object):
             if self.visualizer is not None and iteration % 5 == 0:
                 self.visualizer.visualize_sampling(rand_config, near_config, new_config, self.tree, self.start, self.goal)
             
-            if new_config is None:
-                continue
-
-            #  Validity checks
-            if not self.bb.config_validity_checker(new_config):
-                continue
-            if not self.bb.edge_validity_checker(near_config, new_config):
+            if not self.validate_checks(near_config, new_config):
                 continue
 
             new_id = self.tree.add_vertex(new_config)
@@ -64,17 +76,8 @@ class RRTMotionPlanner(object):
                 goal_id = new_id
                 break
 
-
-
         # Reconstruct path
-        path = []
-        curr = goal_id
-        while True:
-            path.append(self.tree.vertices[curr].config)
-            if curr == self.tree.get_root_id():
-                break
-            curr = self.tree.edges[curr]
-        path.reverse()
+        path = self.reconstruct_path(goal_id)
 
         self.plan_time = time.time() - start_time  
         return np.array(path, dtype=float)
@@ -90,7 +93,7 @@ class RRTMotionPlanner(object):
             total_cost += self.bb.compute_distance(plan[i], plan[i + 1])
         return total_cost
 
-    def extend(self, near_config, rand_config):
+    def extend(self, near_config, rand_config, max_step_size = 0.7):
         '''
         Compute and return a new configuration for the sampled one.
         @param near_config The nearest configuration to the sampled configuration.
@@ -109,7 +112,7 @@ class RRTMotionPlanner(object):
             return rand
 
         if self.ext_mode == "E2":
-            eta = 0.7  # Small step size in radians 
+            eta = max_step_size  # Small step size in radians
             if dist <= eta:
                 return rand 
             step = (eta / dist) * diff
