@@ -479,4 +479,4 @@ if __name__ == "__main__":
     #report_part2_goal_bias()
     
     # Run inspection planning performance report
-    report_inspection_planning_performance(n_runs=10)
+    #report_inspection_planning_performance(n_runs=10)

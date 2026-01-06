@@ -30,14 +30,19 @@ class BuildingBlocks3D(object):
             ["forearm_link", "wrist_3_link"],
         ]
 
-    def sample_random_config(self, goal_prob, goal_conf) -> np.array:
+    def sample_random_config(self, goal_prob,  goal_conf) -> np.array:
         """
         sample random configuration
         @param goal_conf - the goal configuration
         :param goal_prob - the probability that goal should be sampled
         """
-        # TODO: HW2 5.2.1
-        pass
+        # HW2 5.2.1
+        uni_sample = np.random.uniform(low=0.0, high=1.0, size=None)
+        if uni_sample <= goal_prob:
+            return goal_conf
+        else:
+            # sample a random dist with the same size as the goal conf, limited by the mechanical limit.
+            return np.random.uniform(low=-self.single_mechanical_limit, high=self.single_mechanical_limit, size=len(goal_conf))
 
     def config_validity_checker(self, conf) -> bool:
         """check for collision in given configuration, arm-arm and arm-obstacle
@@ -48,23 +53,62 @@ class BuildingBlocks3D(object):
         """
         TODO:
         add a condition to the function config validity checker() to
-return False if the manipulator exceeds the plain 0.4 [m] in x-direction. Provide the function the
-configuration [130,-70, 90, -90, -90, 0][deg] (convert degrees to radians using the numpy.deg2rad()
-function) to verify that it indeed returns False.
-        """
-        head = (5, 5, 5)
-        if head[0] < 0.4:  # TODO: make sure this is in meters.
-            return False
-        pass
+        return False if the manipulator exceeds the plain 0.4 [m] in x-direction. Provide the function the
+        configuration [130,-70, 90, -90, -90, 0][deg] (convert degrees to radians using the numpy.deg2rad()
+        function) to verify that it indeed returns False.
+                """
+
+        
+        # HW2 5.2.2
+        collisions = self.possible_link_collisions
+        radii = self.ur_params.sphere_radius
+        sphere_coords = self.transform.conf2sphere_coords(conf) # figure out the location of every link using transforms
+        for coli in collisions:
+            link1, link2 = coli
+            # check that the spheres dont intersect
+            for s1 in sphere_coords[link1]: # for sphere in link1
+                for s2 in sphere_coords[link2]: # for sphere in link2
+                    if np.linalg.norm(s1 - s2) < radii[link1] + radii[link2]:
+                        # print("internal col")
+                        return False
+        # check collisions with the floor
+        links = self.ur_params.ur_links
+        obstacles, obs_radius = self.env.obstacles, self.env.radius
+        for link in links:
+            for sphere in sphere_coords[link]:
+                # check collision with the floor, but not for the shoulder link since it always touches the ground
+                if link != 'shoulder_link' and sphere[2] < radii[link]:
+                    # print("floor col. sphere = " + str(sphere) + " raddi[link] = " + str(radii[link]))
+                    return False
+                # check collision with obstacles
+                for obs in obstacles:
+                    if np.linalg.norm(sphere-obs) < radii[link] + obs_radius:
+                        # print("obs col. sphere = " + str(sphere) + " obs = " + str(obs))
+                        return False
+        # did not find collisions of any kind. return true.
+        return True
 
 
     def edge_validity_checker(self, prev_conf, current_conf) -> bool:
-        """check for collisions between two configurations - return True if trasition is valid
+        '''check for collisions between two configurations - return True if trasition is valid
         @param prev_conf - some configuration
         @param current_conf - current configuration
-        """
-        # TODO: HW2 5.2.4
-        pass
+        '''
+        # HW2 5.2.4
+        res = min(0.5, self.resolution)
+        progress = 0
+        # iters = 0
+        while True:
+            # iters+=1
+            conf = prev_conf * (1.0 - progress) + current_conf * progress  # TODO: check that this is the right way to use the resolution
+            if not self.config_validity_checker(conf):
+                # print("iters = " +str(iters))
+                return False
+            if progress == 1.0:
+                # print("iters = " + str(iters))
+                return True
+            progress += res
+            progress = min(progress, 1.0) # do one last iteration, for the final config.
 
     def compute_distance(self, conf1, conf2):
         """
