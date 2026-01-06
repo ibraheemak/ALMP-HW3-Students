@@ -74,7 +74,7 @@ class RRTStarPlanner(RRTMotionPlanner):
         # TODO: HW3 3
         self.tree = RRTTree(self.bb, task="mp")
         root_id = self.tree.add_vertex(np.asarray(self.start, dtype=float))
-        avg_time_secs = 5.0 # TODO: set the time we got from earlier parts (50.0?)
+        avg_time_secs = 50.0 # TODO: set the time we got from earlier parts (50.0?)
         max_time_secs = 5.0 * avg_time_secs
         goal_id = None
         iteration = 0
@@ -109,4 +109,71 @@ class RRTStarPlanner(RRTMotionPlanner):
     def extend(self, x_near, x_rand):
         # HW3 3
         return RRTMotionPlanner.extend(self, x_near, x_rand, self.max_step_size)
+    
+    def plan_with_stats(self, log_every=50):
+        """
+        Same logic as plan(), but also logs:
+        - best/ current goal cost vs iteration
+        - success indicator vs iteration (0/1)
 
+        Returns:
+            path (np.array)
+            iters (np.array)          logged iteration numbers
+            costs (np.array)          cost at goal_id (np.inf if no solution yet)
+            success (np.array)        1 if goal found by that iteration else 0
+        """
+        self.tree = RRTTree(self.bb, task="mp")
+        root_id = self.tree.add_vertex(np.asarray(self.start, dtype=float))
+
+        avg_time_secs = 50.0
+        max_time_secs = 5.0 * avg_time_secs
+        goal_id = None
+        iteration = 0
+        start_time = time.time()
+
+        iters = []
+        costs = []
+        success = []
+
+        # run until time budget expires (same as plan)
+        while (time.time() - start_time) < max_time_secs and (
+                not (self.max_itr is not None and iteration > self.max_itr)):
+
+            iteration += 1
+            rand_config = self.bb.sample_random_config(self.goal_prob, self.goal)
+            near_id, near_config = self.tree.get_nearest_config(rand_config)
+            new_config = self.extend(near_config, rand_config)
+            new_id = self.add_node(near_id, near_config, new_config)
+
+            # SAME goal condition as plan()
+            if (new_config == np.asarray(self.goal, dtype=float)).all():
+                goal_id = new_id
+                if self.stop_on_goal:
+                    break
+
+            # log at constant iteration intervals
+            if iteration == 1 or (iteration % log_every == 0):
+                iters.append(iteration)
+                if goal_id is None:
+                    costs.append(np.inf)
+                    success.append(0)
+                else:
+                    # IMPORTANT: use current tree cost to goal_id (may improve due to rewiring)
+                    costs.append(self.tree.get_cost(goal_id))
+                    success.append(1)
+
+        # final log if last iteration wasn't logged
+        if len(iters) == 0 or iters[-1] != iteration:
+            iters.append(iteration)
+            if goal_id is None:
+                costs.append(np.inf)
+                success.append(0)
+            else:
+                costs.append(self.tree.get_cost(goal_id))
+                success.append(1)
+
+        if goal_id is None:
+            return np.array([], dtype=float), np.array(iters), np.array(costs), np.array(success)
+
+        path = self.reconstruct_path(goal_id)
+        return np.array(path, dtype=float), np.array(iters), np.array(costs), np.array(success)

@@ -121,6 +121,9 @@ def run_3d():
                           ur_params=ur_params,
                           env=env,
                           resolution=0.1 )
+    
+    test_conf = np.deg2rad([130, -70, 90, -90, -90, 0])
+    print("Sanity check (should be False):", bb.config_validity_checker(test_conf))
 
     visualizer = Visualize_UR(ur_params, env=env, transform=transform, bb=bb)
 
@@ -141,7 +144,6 @@ def run_3d():
     path = rrt_star_planner.plan()
 
     if path is not None:
-
         # create a folder for the experiment
         # Format the time string as desired (YYYY-MM-DD_HH-MM-SS)
         now = datetime.now()
@@ -463,14 +465,88 @@ def report_inspection_planning_performance(n_runs=10):
     return results
 
 
+
+def run_3d_rrtstar_planwithstats_test():
+    # --- Build 3D world ---
+    ur_params = UR5e_PARAMS(inflation_factor=1)
+    env = Environment(env_idx=2)
+    transform = Transform(ur_params)
+
+    bb = BuildingBlocks3D(
+        transform=transform,
+        ur_params=ur_params,
+        env=env,
+        resolution=0.1
+    )
+
+    # --- Sanity check requested by HW3 (window constraint) ---
+    test_conf = np.deg2rad([130, -70, 90, -90, -90, 0])
+    print("Sanity check (should be False):", bb.config_validity_checker(test_conf))
+
+    # --- Start/Goal for env_idx=2 ---
+    start = np.deg2rad([110, -70, 90, -90, -90, 0 ])
+    goal = np.deg2rad([50, -80, 90, -90, -90, 0 ])
+
+    # --- Create planner ---
+    planner = RRTStarPlanner(
+        bb=bb,
+        ext_mode="E2",
+        max_step_size=0.2,     # try also 0.05, 0.4 later
+        start=start,
+        goal=goal,
+        max_itr=2000,          # HW3 requirement
+        stop_on_goal=False,    # HW3: do not stop at first solution
+        goal_prob=0.2         # p_bias
+    )
+
+    # --- Run with stats ---
+    path, iters, costs, success = planner.plan_with_stats(log_every=50)
+
+    print("\n--- plan_with_stats result ---")
+    print("Logged points:", len(iters))
+    print("Last iter:", iters[-1])
+    print("Final success:", success[-1])
+    if np.isfinite(costs[-1]):
+        print("Final best cost:", costs[-1])
+    else:
+        print("No solution found within budget.")
+
+    # --- Plot: success vs iteration ---
+    plt.figure()
+    plt.plot(iters, success)
+    plt.xlabel("Iteration")
+    plt.ylabel("Success (0/1)")
+    plt.title("RRT* Success vs Iteration (single run)")
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+    # --- Plot: cost vs iteration (ignore inf by plotting as gaps) ---
+    plt.figure()
+    costs_plot = costs.copy()
+    costs_plot[np.isinf(costs_plot)] = np.nan  # show gaps before first solution
+    plt.plot(iters, costs_plot)
+    plt.xlabel("Iteration")
+    plt.ylabel("Cost (NaN before first solution)")
+    plt.title("RRT* Cost vs Iteration (single run)")
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+    return path, iters, costs, success
+
+
+
+
+
+
 if __name__ == "__main__":
     #run_dot_2d_astar()
     #run_dot_2d_rrt()
     # run_dot_2d_rrt_star()
     # run_2d_rrt_motion_planning()
     # run_2d_rrt_inspection_planning()
-    run_2d_rrt_star_motion_planning()
-    # run_3d()
+    #run_2d_rrt_star_motion_planning()
+    #run_3d()
+    #run_3d_rrtstar_planwithstats_test()
 
     #results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)
     #plot_extend_runtime_bars(results)

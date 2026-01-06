@@ -56,13 +56,16 @@ class BuildingBlocks3D(object):
         return False if the manipulator exceeds the plain 0.4 [m] in x-direction. Provide the function the
         configuration [130,-70, 90, -90, -90, 0][deg] (convert degrees to radians using the numpy.deg2rad()
         function) to verify that it indeed returns False.
-                """
-
+        """
+        sphere_coords = self.transform.conf2sphere_coords(conf) # figure out the location of every link using transforms
+        for link, spheres in sphere_coords.items():
+            for s in spheres:
+                if s[0] > 0.4:   # x-coordinate in meters
+                    return False
         
         # HW2 5.2.2
         collisions = self.possible_link_collisions
         radii = self.ur_params.sphere_radius
-        sphere_coords = self.transform.conf2sphere_coords(conf) # figure out the location of every link using transforms
         for coli in collisions:
             link1, link2 = coli
             # check that the spheres dont intersect
