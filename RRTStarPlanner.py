@@ -43,11 +43,12 @@ class RRTStarPlanner(RRTMotionPlanner):
 
         parent_id, parent_config = near_id, near_config
         new_config_cost = self.tree.get_cost(near_id) + self.dist(near_config, new_config)
-        k = min(5, len(self.tree.vertices)-1) # = self.k TODO: calculate according to formula from lecture about RRT*, or from other educated guess. maybe set as logn
+        k = 5*int(np.ceil(np.log(max(len(self.tree.vertices), 2)))) # TODO: determine best constant multiplier to k
+        k = min(k, len(self.tree.vertices)-1)
         if k >= 2: # search for best parent
             knn_ids, knn_configs = self.tree.get_k_nearest_neighbors(new_config, k)
             for v_id, v_config in zip(knn_ids, knn_configs):
-                better_cost = self.tree.get_cost(v_id) + self.dist(new_config, v_config)
+                better_cost = self.tree.get_cost(v_id) + self.dist(v_config, new_config)
                 if better_cost < new_config_cost and self.bb.edge_validity_checker(v_config, new_config):
                     new_config_cost = better_cost
                     parent_id, parent_config = v_id, v_config
@@ -61,10 +62,14 @@ class RRTStarPlanner(RRTMotionPlanner):
             for v_id, v_config in zip(knn_ids, knn_configs):
                 edge_cost = self.dist(new_config, v_config)
                 better_cost = new_config_cost + edge_cost
-                if (better_cost < self.tree.get_cost(v_id) and
-                        self.bb.edge_validity_checker(new_config, v_config)):
-                    # improve tree by replacing the edge to v with a new edge.
-                    self.tree.update_subtree(v_id, new_id, edge_cost)
+                if (better_cost < self.tree.get_cost(v_id)):
+                    print("better cost")
+                    if self.bb.edge_validity_checker(new_config, v_config):
+                        # improve tree by replacing the edge to v with a new edge.
+                        old = self.tree.get_cost(v_id)
+                        self.tree.update_subtree(v_id, new_id, edge_cost)
+                        new = self.tree.get_cost(v_id)
+                        print("rewire", v_id, "old", old, "new", new)
         return new_id
 
     def plan(self):
@@ -80,10 +85,13 @@ class RRTStarPlanner(RRTMotionPlanner):
         iteration = 0
         start_time = time.time()
 
+        print("start plan")
         # run until time budget expires
         while (time.time() - start_time) < max_time_secs and (
                 not (self.max_itr is not None and iteration > self.max_itr)):
             iteration += 1
+            if iteration % 100 == 0:
+                print("iteration:", iteration)
             rand_config = self.bb.sample_random_config(self.goal_prob, self.goal)
             near_id, near_config = self.tree.get_nearest_config(rand_config)
             new_config = self.extend(near_config, rand_config)
