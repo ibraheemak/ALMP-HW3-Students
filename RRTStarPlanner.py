@@ -2,6 +2,7 @@ import numpy as np
 from RRTTree import RRTTree
 from RRTMotionPlanner import RRTMotionPlanner
 import time
+import math
 
 class RRTStarPlanner(RRTMotionPlanner):
 
@@ -48,7 +49,7 @@ class RRTStarPlanner(RRTMotionPlanner):
         if k >= 2: # search for best parent
             knn_ids, knn_configs = self.tree.get_k_nearest_neighbors(new_config, k)
             for v_id, v_config in zip(knn_ids, knn_configs):
-                better_cost = self.tree.get_cost(v_id) + self.dist(v_config, new_config)
+                better_cost = self.tree.get_cost(v_id) + self.dist(new_config, v_config)
                 if better_cost < new_config_cost and self.bb.edge_validity_checker(v_config, new_config):
                     new_config_cost = better_cost
                     parent_id, parent_config = v_id, v_config
@@ -85,13 +86,10 @@ class RRTStarPlanner(RRTMotionPlanner):
         iteration = 0
         start_time = time.time()
 
-        print("start plan")
         # run until time budget expires
         while (time.time() - start_time) < max_time_secs and (
                 not (self.max_itr is not None and iteration > self.max_itr)):
             iteration += 1
-            if iteration % 100 == 0:
-                print("iteration:", iteration)
             rand_config = self.bb.sample_random_config(self.goal_prob, self.goal)
             near_id, near_config = self.tree.get_nearest_config(rand_config)
             new_config = self.extend(near_config, rand_config)

@@ -1,0 +1,5 @@
+p_bias: 0.05
+max_step_size: 0.4
+run_idx: 13
+path_cost: 1.5988871649434269
+num_states: 10

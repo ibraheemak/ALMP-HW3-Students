@@ -613,9 +613,9 @@ def run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=None):
     print("Sanity check (should be False):", bb.config_validity_checker(test_conf))
 
     # Your current small test values (change later to full list)
-    max_step_sizes = [0.05, 0.07]
-    p_biases = [0.2]
-    n_runs = 2
+    max_step_sizes = [0.05,0.075,0.1,0.125,0.2,0.25,0.3,0.4]
+    p_biases = [0.05, 0.2]
+    n_runs = 20
 
     # Root folder for saving all runs
     exps_root = os.path.join(os.getcwd(), "exps")
@@ -765,8 +765,8 @@ if __name__ == "__main__":
     # run_2d_rrt_inspection_planning()
     #run_2d_rrt_star_motion_planning()
     #run_3d()
-    run_3d_rrtstar_planwithstats_test()
-    #run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=8)
+    #run_3d_rrtstar_planwithstats_test()
+    run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=8)
 
     #results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)
     #plot_extend_runtime_bars(results)
