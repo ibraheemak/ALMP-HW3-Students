@@ -757,6 +757,44 @@ def run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=None):
     return results, best_info
 
 
+
+def visualize_saved_path(path_file, env_idx=2):
+    """
+    Load a saved path (.npy) and visualize it using Visualize_UR.
+
+    Args:
+        path_file (str): path to path.npy
+        env_idx (int): environment index (must match planning env)
+    """
+
+    # Load path
+    path = np.load(path_file)
+    print(f"Loaded path with shape {path.shape}")
+
+    # Rebuild environment (must match original run)
+    ur_params = UR5e_PARAMS(inflation_factor=1)
+    env = Environment(env_idx=env_idx)
+    transform = Transform(ur_params)
+
+    bb = BuildingBlocks3D(
+        transform=transform,
+        ur_params=ur_params,
+        env=env,
+        resolution=0.1
+    )
+
+    # Visualize
+    visualizer = Visualize_UR(
+        ur_params,
+        env=env,
+        transform=transform,
+        bb=bb
+    )
+
+    visualizer.show_path(path)
+
+
+
 if __name__ == "__main__":
     #run_dot_2d_astar()
     #run_dot_2d_rrt()
@@ -766,7 +804,7 @@ if __name__ == "__main__":
     #run_2d_rrt_star_motion_planning()
     #run_3d()
     #run_3d_rrtstar_planwithstats_test()
-    run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=8)
+    #run_3d_hw3_full_plots_and_save_all_mp(log_every=50, n_workers=8)
 
     #results = report_part1_compare_extend_avg(n_runs=10, goal_bias=0.20)
     #plot_extend_runtime_bars(results)
@@ -776,3 +814,5 @@ if __name__ == "__main__":
     
     # Run inspection planning performance report
     #report_inspection_planning_performance(n_runs=10)
+
+    visualize_saved_path("exp_pbias_0.2_max_step_size_0.125_run_6_2026-01-07_01-31-11/path.npy", env_idx=2)
