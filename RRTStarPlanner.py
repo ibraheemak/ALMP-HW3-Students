@@ -2,6 +2,7 @@ import numpy as np
 from RRTTree import RRTTree
 from RRTMotionPlanner import RRTMotionPlanner
 import time
+import math
 
 class RRTStarPlanner(RRTMotionPlanner):
 
@@ -43,7 +44,8 @@ class RRTStarPlanner(RRTMotionPlanner):
 
         parent_id, parent_config = near_id, near_config
         new_config_cost = self.tree.get_cost(near_id) + self.dist(near_config, new_config)
-        k = min(5, len(self.tree.vertices)-1) # = self.k TODO: calculate according to formula from lecture about RRT*, or from other educated guess. maybe set as logn
+        k = int(np.log(len(self.tree.vertices)))
+        k = min(k, len(self.tree.vertices) - 1)
         if k >= 2: # search for best parent
             knn_ids, knn_configs = self.tree.get_k_nearest_neighbors(new_config, k)
             for v_id, v_config in zip(knn_ids, knn_configs):
